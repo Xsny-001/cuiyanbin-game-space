@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>打地鼠 · 崔彦斌的游戏空间</title>
+    <meta name="description" content="30 秒打地鼠小游戏：眼疾手快敲中更多地鼠，金色地鼠一次得 3 分。" />
+    <meta name="theme-color" content="#080a12" />
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/css/base.css" />
+    <link rel="stylesheet" href="../../assets/css/game.css" />
+  </head>
+  <body class="game-page">
+    <header class="page-head">
+      <a class="back-link" href="../../index.html"><span aria-hidden="true">←</span> 游戏空间</a>
+      <h1 class="page-title">打地鼠</h1>
+      <button class="icon-btn" type="button" data-sound-toggle aria-pressed="true" aria-label="关闭音效" title="关闭音效">
+        <span data-sound-icon>🔊</span>
+      </button>
+    </header>
+
+    <main class="game-shell">
+      <div class="hud">
+        <div class="hud-item"><span>得分</span><strong id="score">0</strong></div>
+        <div class="hud-item"><span>剩余时间</span><strong id="time">30</strong></div>
+        <div class="hud-item"><span>最高分</span><strong id="best">0</strong></div>
+      </div>
+
+      <div class="whack-board">
+        <div class="whack-grid" id="grid">
+          <button class="hole" type="button" data-index="0" aria-label="地洞 1"><span class="mole" aria-hidden="true">🐹</span></button>
+          <button class="hole" type="button" data-index="1" aria-label="地洞 2"><span class="mole" aria-hidden="true">🐹</span></button>
+          <button class="hole" type="button" data-index="2" aria-label="地洞 3"><span class="mole" aria-hidden="true">🐹</span></button>
+          <button class="hole" type="button" data-index="3" aria-label="地洞 4"><span class="mole" aria-hidden="true">🐹</span></button>
+          <button class="hole" type="button" data-index="4" aria-label="地洞 5"><span class="mole" aria-hidden="true">🐹</span></button>
+          <button class="hole" type="button" data-index="5" aria-label="地洞 6"><span class="mole" aria-hidden="true">🐹</span></button>
+          <button class="hole" type="button" data-index="6" aria-label="地洞 7"><span class="mole" aria-hidden="true">🐹</span></button>
+          <button class="hole" type="button" data-index="7" aria-label="地洞 8"><span class="mole" aria-hidden="true">🐹</span></button>
+          <button class="hole" type="button" data-index="8" aria-label="地洞 9"><span class="mole" aria-hidden="true">🐹</span></button>
+        </div>
+        <div class="overlay" id="overlay">
+          <div class="overlay-card">
+            <p class="overlay-kicker" id="kicker">准备开始</p>
+            <h2 id="overlayTitle">打地鼠</h2>
+            <p id="overlayText">30 秒内敲中更多地鼠。普通地鼠 1 分，金色地鼠 3 分。</p>
+            <div class="overlay-actions">
+              <button class="btn primary" id="primaryBtn" type="button">开始游戏</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint">点击或触摸冒头的地鼠即可得分 · 30 秒限时<br />金色光晕的地鼠分数更高。</p>
+
+      <div class="controls">
+        <button class="btn ghost small" id="restartBtn" type="button">重新开始</button>
+      </div>
+    </main>
+
+    <footer class="page-foot">
+      <a href="../../index.html">← 返回全部游戏</a> · 崔彦斌的游戏空间
+    </footer>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="whack.js"></script>
+  </body>
+</html>

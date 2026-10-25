@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>俄罗斯方块 · 崔彦斌的游戏空间</title>
+    <meta name="description" content="经典俄罗斯方块：旋转、堆叠、消行，等级越高速度越快。支持键盘与触屏操作。" />
+    <meta name="theme-color" content="#080a12" />
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/css/base.css" />
+    <link rel="stylesheet" href="../../assets/css/game.css" />
+  </head>
+  <body class="game-page">
+    <header class="page-head">
+      <a class="back-link" href="../../index.html"><span aria-hidden="true">←</span> 游戏空间</a>
+      <h1 class="page-title">俄罗斯方块</h1>
+      <button class="icon-btn" type="button" data-sound-toggle aria-pressed="true" aria-label="关闭音效" title="关闭音效">
+        <span data-sound-icon>🔊</span>
+      </button>
+    </header>
+
+    <main class="game-shell">
+      <div class="hud">
+        <div class="hud-item"><span>得分</span><strong id="score">0</strong></div>
+        <div class="hud-item"><span>等级</span><strong id="level">1</strong></div>
+        <div class="hud-item"><span>消行</span><strong id="lines">0</strong></div>
+        <div class="hud-item"><span>最高分</span><strong id="best">0</strong></div>
+      </div>
+
+      <div class="tetris-layout">
+        <div class="tetris-board-wrap">
+          <canvas id="board" width="300" height="600" aria-label="俄罗斯方块游戏区域"></canvas>
+          <div class="overlay" id="overlay">
+            <div class="overlay-card">
+              <p class="overlay-kicker" id="kicker">准备开始</p>
+              <h2 id="overlayTitle">俄罗斯方块</h2>
+              <p id="overlayText">旋转并堆叠方块，填满一整行即可消除。每消 10 行，下落速度提升一级。</p>
+              <div class="overlay-actions">
+                <button class="btn primary" id="primaryBtn" type="button">开始游戏</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="tetris-side">
+          <div class="tetris-box">
+            <span>下一个</span>
+            <canvas id="next" width="120" height="120" aria-label="下一个方块"></canvas>
+          </div>
+          <div class="tetris-box">
+            <span>操作</span>
+            <b style="font-size: 12px; font-weight: 500; line-height: 1.8; color: #98a2c0">
+              ← → 移动<br />
+              ↑ 旋转<br />
+              空格 落底<br />
+              P 暂停
+            </b>
+          </div>
+        </aside>
+      </div>
+
+      <div class="tetris-controls" aria-label="触屏操作">
+        <button class="touch-btn" type="button" data-action="left" aria-label="左移">←</button>
+        <button class="touch-btn" type="button" data-action="rotate" aria-label="旋转">↻</button>
+        <button class="touch-btn" type="button" data-action="right" aria-label="右移">→</button>
+        <button class="touch-btn" type="button" data-action="down" aria-label="下落一格">↓</button>
+        <button class="touch-btn" type="button" data-action="drop" aria-label="直接落底">⤓</button>
+      </div>
+
+      <p class="hint">
+        <kbd>←</kbd><kbd>→</kbd> 移动 · <kbd>↑</kbd> 旋转 · <kbd>↓</kbd> 加速 ·
+        <kbd>空格</kbd> 直接落底 · <kbd>P</kbd> 暂停
+      </p>
+
+      <div class="controls">
+        <button class="btn ghost small" id="pauseBtn" type="button">暂停 / 继续</button>
+        <button class="btn ghost small" id="restartBtn" type="button">重新开始</button>
+      </div>
+    </main>
+
+    <footer class="page-foot">
+      <a href="../../index.html">← 返回全部游戏</a> · 崔彦斌的游戏空间
+    </footer>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="tetris.js"></script>
+  </body>
+</html>

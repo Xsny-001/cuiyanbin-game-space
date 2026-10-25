@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>打砖块 · 崔彦斌的游戏空间</title>
+    <meta name="description" content="经典打砖块小游戏：拖动挡板接住弹球，敲碎全部砖块进入下一关，三条生命挑战高分。" />
+    <meta name="theme-color" content="#080a12" />
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/css/base.css" />
+    <link rel="stylesheet" href="../../assets/css/game.css" />
+  </head>
+  <body class="game-page">
+    <header class="page-head">
+      <a class="back-link" href="../../index.html"><span aria-hidden="true">←</span> 游戏空间</a>
+      <h1 class="page-title">打砖块</h1>
+      <button class="icon-btn" type="button" data-sound-toggle aria-pressed="true" aria-label="关闭音效" title="关闭音效">
+        <span data-sound-icon>🔊</span>
+      </button>
+    </header>
+
+    <main class="game-shell">
+      <div class="hud">
+        <div class="hud-item"><span>得分</span><strong id="score">0</strong></div>
+        <div class="hud-item"><span>生命</span><strong id="lives">3</strong></div>
+        <div class="hud-item"><span>关卡</span><strong id="level">1</strong></div>
+      </div>
+
+      <div class="stage breakout-stage">
+        <canvas id="board" width="480" height="640" aria-label="打砖块游戏区域"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="overlay-card">
+            <p class="overlay-kicker" id="kicker">准备开始</p>
+            <h2 id="overlayTitle">打砖块</h2>
+            <p id="overlayText">移动挡板接住弹球，敲碎全部砖块进入下一关。三条生命，别让球掉下去。</p>
+            <div class="overlay-actions">
+              <button class="btn primary" id="primaryBtn" type="button">开始游戏</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint">
+        拖动挡板 · 点击画布 / <kbd>空格</kbd> 发球 · <kbd>P</kbd> 暂停<br />
+        越往后的关卡球速越快，挡板也会变窄。
+      </p>
+
+      <div class="controls">
+        <button class="btn ghost small" id="restartBtn" type="button">重新开始</button>
+      </div>
+    </main>
+
+    <footer class="page-foot">
+      <a href="../../index.html">← 返回全部游戏</a> · 崔彦斌的游戏空间
+    </footer>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="breakout.js"></script>
+  </body>
+</html>

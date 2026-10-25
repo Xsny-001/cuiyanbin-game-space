@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>扫雷 · 崔彦斌的游戏空间</title>
+    <meta name="description" content="经典扫雷小游戏：首点安全、支持长按插旗与三档难度，根据数字推理地雷位置。" />
+    <meta name="theme-color" content="#080a12" />
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/css/base.css" />
+    <link rel="stylesheet" href="../../assets/css/game.css" />
+  </head>
+  <body class="game-page">
+    <header class="page-head">
+      <a class="back-link" href="../../index.html"><span aria-hidden="true">←</span> 游戏空间</a>
+      <h1 class="page-title">扫雷</h1>
+      <button class="icon-btn" type="button" data-sound-toggle aria-pressed="true" aria-label="关闭音效" title="关闭音效">
+        <span data-sound-icon>🔊</span>
+      </button>
+    </header>
+
+    <main class="game-shell is-wide">
+      <div class="ms-toolbar">
+        <div class="segmented" role="group" aria-label="选择难度">
+          <button class="seg-btn is-active" type="button" data-level="easy">初级</button>
+          <button class="seg-btn" type="button" data-level="medium">中级</button>
+          <button class="seg-btn" type="button" data-level="hard">高级</button>
+        </div>
+        <button class="flag-toggle" id="flagToggle" type="button" aria-pressed="false">
+          <span aria-hidden="true">🚩</span> 插旗模式
+        </button>
+      </div>
+
+      <div class="hud">
+        <div class="hud-item"><span>剩余雷数</span><strong id="minesLeft">10</strong></div>
+        <div class="hud-item"><span>用时</span><strong id="timer">0</strong></div>
+        <div class="hud-item"><span>本关最快</span><strong id="bestTime">—</strong></div>
+      </div>
+
+      <div class="ms-stage" id="stage">
+        <div class="ms-board-wrap" id="wrap">
+          <div class="ms-board" id="board" role="grid" aria-label="扫雷棋盘"></div>
+        </div>
+        <div class="overlay" id="overlay" hidden>
+          <div class="overlay-card">
+            <p class="overlay-kicker" id="kicker">排雷成功</p>
+            <h2 id="overlayTitle">安全了！</h2>
+            <p id="overlayText">用时 <b>0</b> 秒</p>
+            <div class="overlay-actions">
+              <button class="btn primary" id="primaryBtn" type="button">再来一局</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint">
+        左键翻开 · 右键插旗 · 手机上长按格子插旗<br />
+        第一次点击永远安全。翻开所有非雷格子即可获胜。
+      </p>
+
+      <div class="controls">
+        <button class="btn ghost small" id="restartBtn" type="button">重新开始</button>
+      </div>
+    </main>
+
+    <footer class="page-foot">
+      <a href="../../index.html">← 返回全部游戏</a> · 崔彦斌的游戏空间
+    </footer>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="minesweeper.js"></script>
+  </body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>记忆翻牌 · 崔彦斌的游戏空间</title>
+    <meta name="description" content="记忆翻牌小游戏：翻开卡片记住图案，用最少的步数找出全部 8 对配对。" />
+    <meta name="theme-color" content="#080a12" />
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/css/base.css" />
+    <link rel="stylesheet" href="../../assets/css/game.css" />
+  </head>
+  <body class="game-page">
+    <header class="page-head">
+      <a class="back-link" href="../../index.html"><span aria-hidden="true">←</span> 游戏空间</a>
+      <h1 class="page-title">记忆翻牌</h1>
+      <button class="icon-btn" type="button" data-sound-toggle aria-pressed="true" aria-label="关闭音效" title="关闭音效">
+        <span data-sound-icon>🔊</span>
+      </button>
+    </header>
+
+    <main class="game-shell">
+      <div class="hud">
+        <div class="hud-item"><span>步数</span><strong id="moves">0</strong></div>
+        <div class="hud-item"><span>配对</span><strong id="pairs">0 / 8</strong></div>
+        <div class="hud-item"><span>用时</span><strong id="time">0:00</strong></div>
+        <div class="hud-item"><span>最佳步数</span><strong id="best">—</strong></div>
+      </div>
+
+      <div class="stage is-square">
+        <div class="mem-board" id="board" aria-label="记忆翻牌棋盘"></div>
+        <div class="overlay" id="overlay" hidden>
+          <div class="overlay-card">
+            <p class="overlay-kicker">全部配对</p>
+            <h2>记忆力不错！</h2>
+            <p id="overlayText">用了 <b>0</b> 步</p>
+            <div class="overlay-actions">
+              <button class="btn primary" id="primaryBtn" type="button">再玩一次</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint">
+        点击卡片翻开，连续翻开两张相同图案即可配对。<br />
+        每一步都会计入成绩，用最少的步数完成全部 8 对。
+      </p>
+
+      <div class="controls">
+        <button class="btn ghost small" id="restartBtn" type="button">重新开始</button>
+      </div>
+    </main>
+
+    <footer class="page-foot">
+      <a href="../../index.html">← 返回全部游戏</a> · 崔彦斌的游戏空间
+    </footer>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="memory.js"></script>
+  </body>
+</html>

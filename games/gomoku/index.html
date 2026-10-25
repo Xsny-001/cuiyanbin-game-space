@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>五子棋 · 崔彦斌的游戏空间</title>
+    <meta name="description" content="五子棋人机对战：你执黑先行，先连成五子者获胜。支持悔棋、胜负战绩统计。" />
+    <meta name="theme-color" content="#080a12" />
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/css/base.css" />
+    <link rel="stylesheet" href="../../assets/css/game.css" />
+  </head>
+  <body class="game-page">
+    <header class="page-head">
+      <a class="back-link" href="../../index.html"><span aria-hidden="true">←</span> 游戏空间</a>
+      <h1 class="page-title">五子棋</h1>
+      <button class="icon-btn" type="button" data-sound-toggle aria-pressed="true" aria-label="关闭音效" title="关闭音效">
+        <span data-sound-icon>🔊</span>
+      </button>
+    </header>
+
+    <main class="game-shell">
+      <div class="hud">
+        <div class="hud-item"><span>胜场</span><strong id="wins">0</strong></div>
+        <div class="hud-item"><span>负场</span><strong id="losses">0</strong></div>
+        <div class="hud-item"><span>总步数</span><strong id="moves">0</strong></div>
+      </div>
+
+      <div class="stage gomoku-stage">
+        <canvas id="board" width="600" height="600" aria-label="五子棋棋盘"></canvas>
+        <div class="overlay" id="overlay" hidden>
+          <div class="overlay-card">
+            <p class="overlay-kicker">对局结束</p>
+            <h2 id="overlayTitle">你赢了！</h2>
+            <p id="overlayText">漂亮的一局。</p>
+            <div class="overlay-actions">
+              <button class="btn primary" id="primaryBtn" type="button">再来一局</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gomoku-status" id="status">
+        <span class="stone-dot is-black" id="turnDot" aria-hidden="true"></span>
+        <span id="statusText">你执黑先行，点击棋盘落子</span>
+      </div>
+
+      <p class="hint">
+        你执黑棋，电脑执白棋。横、竖、斜任意方向先连成五子即获胜。<br />
+        点击交叉点落子，电脑会稍作思考后回应。
+      </p>
+
+      <div class="controls">
+        <button class="btn ghost small" id="undoBtn" type="button">悔棋</button>
+        <button class="btn ghost small" id="restartBtn" type="button">重新开始</button>
+      </div>
+    </main>
+
+    <footer class="page-foot">
+      <a href="../../index.html">← 返回全部游戏</a> · 崔彦斌的游戏空间
+    </footer>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="gomoku.js"></script>
+  </body>
+</html>

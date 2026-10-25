@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>崔彦斌的游戏空间 · 免费在线小游戏</title>
+    <meta
+      name="description"
+      content="崔彦斌的游戏空间：8 款免费在线小游戏，贪吃蛇、2048、俄罗斯方块、扫雷、打砖块、记忆翻牌、打地鼠、五子棋。纯网页、免安装、无广告，打开即玩。"
+    />
+    <meta name="theme-color" content="#080a12" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/site.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="崔彦斌的游戏空间" />
+    <meta
+      property="og:description"
+      content="8 款免费在线小游戏，打开即玩，无需下载，无广告。"
+    />
+    <meta name="twitter:card" content="summary" />
+  </head>
+  <body class="site">
+    <header class="site-nav" id="siteNav">
+      <div class="wrap nav-inner">
+        <a class="brand" href="./" aria-label="崔彦斌的游戏空间 首页">
+          <span class="brand-mark" aria-hidden="true">崔</span>
+          <span class="brand-name">崔彦斌的游戏空间<span> · GAME SPACE</span></span>
+        </a>
+        <span class="nav-spacer"></span>
+        <a class="nav-link" href="#games">全部游戏</a>
+        <a class="nav-link" href="#about">关于</a>
+        <a
+          class="nav-link"
+          href="https://github.com/Xsny-001/cuiyanbin-game-space"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub</a
+        >
+        <button class="nav-cta" id="randomGame" type="button">
+          <span aria-hidden="true">🎲</span> 随机来一局
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero wrap">
+        <div class="hero-glow" aria-hidden="true"></div>
+        <span class="hero-badge"><span class="dot"></span>纯静态 · 无广告 · 打开即玩</span>
+        <h1>崔彦斌的<span class="accent">游戏空间</span></h1>
+        <p class="hero-sub">
+          8 款精心打磨的经典小游戏，全部在浏览器里本地运行。<strong>无需下载、无需登录</strong>，
+          手机和电脑都能直接开玩，成绩只保存在你自己的设备上。
+        </p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#games">开始探索 <span aria-hidden="true">→</span></a>
+          <button class="btn ghost" type="button" id="heroRandom">
+            <span aria-hidden="true">🎮</span> 随机挑战
+          </button>
+        </div>
+        <ul class="hero-stats">
+          <li><b>8</b><span>款小游戏</span></li>
+          <li><b>100%</b><span>免费畅玩</span></li>
+          <li><b>0</b><span>广告与追踪</span></li>
+          <li><b>本地</b><span>成绩存档</span></li>
+        </ul>
+      </section>
+
+      <section class="games-section wrap" id="games">
+        <div class="section-head">
+          <div>
+            <h2>全部游戏 <span class="count" id="gameCount">8 款</span></h2>
+            <p>挑一个喜欢的，点击卡片立即开始。</p>
+          </div>
+          <div class="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="m20 20-3.5-3.5" stroke-linecap="round"></path>
+            </svg>
+            <input
+              id="search"
+              type="search"
+              placeholder="搜索游戏，例如：2048、扫雷"
+              autocomplete="off"
+              enterkeyhint="search"
+              aria-label="搜索游戏"
+            />
+          </div>
+        </div>
+
+        <div class="chips" role="group" aria-label="按类型筛选">
+          <button class="chip" type="button" data-filter="全部" aria-pressed="true">全部</button>
+          <button class="chip" type="button" data-filter="休闲" aria-pressed="false">休闲</button>
+          <button class="chip" type="button" data-filter="益智" aria-pressed="false">益智</button>
+          <button class="chip" type="button" data-filter="动作" aria-pressed="false">动作</button>
+          <button class="chip" type="button" data-filter="策略" aria-pressed="false">策略</button>
+          <button class="chip" type="button" data-filter="反应" aria-pressed="false">反应</button>
+        </div>
+
+        <ul class="game-grid" id="gameGrid">
+          <li>
+            <a
+              class="game-card reveal"
+              href="games/snake/"
+              data-tags="休闲 动作"
+              data-name="贪吃蛇 snake 街机 经典 吃豆"
+              style="--c1: #16a34a; --c2: #22d3ee"
+            >
+              <div class="card-art">
+                <span class="card-emoji" aria-hidden="true">🐍</span>
+                <span class="card-tag">休闲</span>
+              </div>
+              <div class="card-body">
+                <h3>贪吃蛇</h3>
+                <p>吃掉果实不断变长，别撞墙，也别咬到自己的尾巴。</p>
+                <div class="card-meta">
+                  <span class="card-best" data-game="snake" data-prefix="最高" data-unit="分">最高 —</span>
+                  <span class="card-go">开始
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                      <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </a>
+          </li>
+
+          <li>
+            <a
+              class="game-card reveal"
+              href="games/2048/"
+              data-tags="益智"
+              data-name="2048 数字 合并 方块 益智"
+              style="--c1: #f59e0b; --c2: #ef4444"
+            >
+              <div class="card-art">
+                <span class="card-emoji" aria-hidden="true">🔢</span>
+                <span class="card-tag">益智</span>
+              </div>
+              <div class="card-body">
+                <h3>2048</h3>
+                <p>滑动合并相同数字，一步步冲击 2048 方块。</p>
+                <div class="card-meta">
+                  <span class="card-best" data-game="2048" data-prefix="最高" data-unit="分">最高 —</span>
+                  <span class="card-go">开始
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                      <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </a>
+          </li>
+
+          <li>
+            <a
+              class="game-card reveal"
+              href="games/tetris/"
+              data-tags="休闲 策略"
+              data-name="俄罗斯方块 tetris 方块 消除 堆叠"
+              style="--c1: #8b5cf6; --c2: #22d3ee"
+            >
+              <div class="card-art">
+                <span class="card-emoji" aria-hidden="true">🧩</span>
+                <span class="card-tag">休闲</span>
+              </div>
+              <div class="card-body">
+                <h3>俄罗斯方块</h3>
+                <p>旋转、堆叠、消行，在越来越快的节奏里坚持下去。</p>
+                <div class="card-meta">
+                  <span class="card-best" data-game="tetris" data-prefix="最高" data-unit="分">最高 —</span>
+                  <span class="card-go">开始
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                      <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </a>
+          </li>
+
+          <li>
+            <a
+              class="game-card reveal"
+              href="games/breakout/"
+              data-tags="动作"
+              data-name="打砖块 breakout 弹球 挡板 砖墙"
+              style="--c1: #0ea5e9; --c2: #6366f1"
+            >
+              <div class="card-art">
+                <span class="card-emoji" aria-hidden="true">🧱</span>
+                <span class="card-tag">动作</span>
+              </div>
+              <div class="card-body">
+                <h3>打砖块</h3>
+                <p>控制挡板接住弹球，敲碎一整面砖墙，挑战更高关卡。</p>
+                <div class="card-meta">
+                  <span class="card-best" data-game="breakout" data-prefix="最高" data-unit="分">最高 —</span>
+                  <span class="card-go">开始
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                      <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </a>
+          </li>
+
+          <li>
+            <a
+              class="game-card reveal"
+              href="games/minesweeper/"
+              data-tags="益智 策略"
+              data-name="扫雷 minesweeper 排雷 推理 数字"
+              style="--c1: #64748b; --c2: #7c3aed"
+            >
+              <div class="card-art">
+                <span class="card-emoji" aria-hidden="true">💣</span>
+                <span class="card-tag">益智</span>
+              </div>
+              <div class="card-body">
+                <h3>扫雷</h3>
+                <p>根据数字推理地雷位置，首点安全，支持长按插旗。</p>
+                <div class="card-meta">
+                  <span class="card-best" data-game="minesweeper" data-prefix="最快" data-unit="秒">最快 —</span>
+                  <span class="card-go">开始
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                      <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </a>
+          </li>
+
+          <li>
+            <a
+              class="game-card reveal"
+              href="games/memory/"
+              data-tags="休闲 益智"
+              data-name="记忆翻牌 memory 记忆 配对 卡牌"
+              style="--c1: #ec4899; --c2: #8b5cf6"
+            >
+              <div class="card-art">
+                <span class="card-emoji" aria-hidden="true">🃏</span>
+                <span class="card-tag">休闲</span>
+              </div>
+              <div class="card-body">
+                <h3>记忆翻牌</h3>
+                <p>翻开卡片记住图案，用最少的步数把所有配对找齐。</p>
+                <div class="card-meta">
+                  <span class="card-best" data-game="memory" data-prefix="最少" data-unit="步">最少 —</span>
+                  <span class="card-go">开始
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                      <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </a>
+          </li>
+
+          <li>
+            <a
+              class="game-card reveal"
+              href="games/whack/"
+              data-tags="休闲 反应"
+              data-name="打地鼠 whack 地鼠 反应 手速"
+              style="--c1: #84cc16; --c2: #14b8a6"
+            >
+              <div class="card-art">
+                <span class="card-emoji" aria-hidden="true">🐹</span>
+                <span class="card-tag">反应</span>
+              </div>
+              <div class="card-body">
+                <h3>打地鼠</h3>
+                <p>30 秒限时，眼疾手快敲中更多地鼠，金色地鼠有惊喜。</p>
+                <div class="card-meta">
+                  <span class="card-best" data-game="whack" data-prefix="最高" data-unit="分">最高 —</span>
+                  <span class="card-go">开始
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                      <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </a>
+          </li>
+
+          <li>
+            <a
+              class="game-card reveal"
+              href="games/gomoku/"
+              data-tags="策略 益智"
+              data-name="五子棋 gomoku 棋 连珠 电脑对战"
+              style="--c1: #f59e0b; --c2: #64748b"
+            >
+              <div class="card-art">
+                <span class="card-emoji" aria-hidden="true">⚫</span>
+                <span class="card-tag">策略</span>
+              </div>
+              <div class="card-body">
+                <h3>五子棋</h3>
+                <p>与电脑对弈，先连成五子者胜。落子无悔，也能悔棋。</p>
+                <div class="card-meta">
+                  <span class="card-best" data-game="gomoku" data-mode="wins" data-unit="胜">暂无战绩</span>
+                  <span class="card-go">开始
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                      <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </a>
+          </li>
+        </ul>
+
+        <div class="empty-state" id="emptyState">
+          <b aria-hidden="true">🕹️</b>
+          没有找到相关游戏，换个关键词或类型试试。
+        </div>
+
+        <div class="features" id="about">
+          <article class="feature">
+            <span class="feature-icon" aria-hidden="true">⚡</span>
+            <h3>打开即玩</h3>
+            <p>全部游戏由 HTML5 + Canvas 原生实现，页面加载完成就能开始，不需要安装任何插件。</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon" aria-hidden="true">🔒</span>
+            <h3>数据留在本地</h3>
+            <p>最高分和进度只写入浏览器的 localStorage，不上传、不追踪，清空浏览器数据即彻底删除。</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon" aria-hidden="true">🌐</span>
+            <h3>零外部依赖</h3>
+            <p>不加载任何第三方框架、字体或图片，所有资源都在本站域名下，加载快且离线也稳定。</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <div class="wrap foot-inner">
+        <div class="foot-brand">
+          <span class="mini-mark" aria-hidden="true">崔</span>
+          崔彦斌的游戏空间 · <span data-year>2026</span>
+        </div>
+        <div>用 <span class="heart" aria-label="热爱">♥</span> 搭建 · 部署于 Cloudflare Pages</div>
+        <div class="foot-links">
+          <a href="#games">游戏</a>
+          <a href="#about">关于</a>
+          <a href="https://github.com/Xsny-001/cuiyanbin-game-space" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="assets/js/common.js"></script>
+    <script src="assets/js/site.js"></script>
+  </body>
+</html>

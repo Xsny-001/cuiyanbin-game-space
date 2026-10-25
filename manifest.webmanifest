@@ -1,0 +1,20 @@
+{
+  "name": "崔彦斌的游戏空间",
+  "short_name": "游戏空间",
+  "description": "8 款免费在线小游戏，打开即玩，无需下载，无广告。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080a12",
+  "theme_color": "#080a12",
+  "icons": [
+    {
+      "src": "assets/img/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>页面不存在 · 崔彦斌的游戏空间</title>
+    <meta name="theme-color" content="#080a12" />
+    <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/css/base.css" />
+    <style>
+      body {
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        padding: 24px;
+        text-align: center;
+        background: radial-gradient(
+            620px 440px at 50% -10%,
+            rgba(124, 92, 255, 0.26),
+            transparent 62%
+          ),
+          var(--bg);
+      }
+      .code {
+        font-family: var(--mono);
+        font-size: clamp(76px, 18vw, 132px);
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.06em;
+        background: linear-gradient(120deg, #8be9ff, #c4b5fd 55%, #ff9ec7);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      h1 {
+        margin: 18px 0 8px;
+        font-size: clamp(22px, 4vw, 28px);
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0 0 26px;
+        color: var(--muted);
+        font-size: 14.5px;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 34px;
+        font-size: 12.5px;
+        color: var(--muted-soft);
+      }
+      .brand i {
+        display: grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--brand), var(--brand-2));
+        color: #0a0c14;
+        font-style: normal;
+        font-size: 11px;
+        font-weight: 800;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="code" aria-hidden="true">404</div>
+      <h1>走错片场了</h1>
+      <p>这个页面不存在，或者已经被移走了。</p>
+      <a class="btn primary" href="/">返回游戏空间</a>
+      <div class="brand"><i>崔</i> 崔彦斌的游戏空间</div>
+    </main>
+  </body>
+</html>

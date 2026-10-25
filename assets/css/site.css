@@ -1,0 +1,802 @@
+/* ============================================================
+   崔彦斌的游戏空间 · 首页样式
+   ============================================================ */
+
+body.site {
+  overflow-x: hidden;
+}
+
+body.site::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: radial-gradient(
+      720px 520px at 12% -6%,
+      rgba(124, 92, 255, 0.28),
+      transparent 62%
+    ),
+    radial-gradient(
+      780px 560px at 92% 4%,
+      rgba(34, 211, 238, 0.16),
+      transparent 64%
+    ),
+    radial-gradient(
+      620px 520px at 50% 112%,
+      rgba(255, 107, 168, 0.12),
+      transparent 70%
+    ),
+    var(--bg);
+  pointer-events: none;
+}
+
+body.site::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: linear-gradient(
+      rgba(255, 255, 255, 0.028) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 20%, transparent 78%);
+  pointer-events: none;
+}
+
+.wrap {
+  width: min(1180px, 100%);
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+/* ---------- 顶部导航 ---------- */
+
+.site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid transparent;
+  transition: background 0.25s ease, border-color 0.25s ease,
+    backdrop-filter 0.25s ease;
+}
+
+.site-nav.is-stuck {
+  background: rgba(8, 10, 18, 0.72);
+  border-color: var(--line);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-block: 14px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  font-size: 19px;
+  font-weight: 800;
+  color: #0a0c14;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  box-shadow: 0 8px 22px rgba(124, 92, 255, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.brand-name {
+  font-size: 16px;
+}
+
+.brand-name span {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.nav-spacer {
+  flex: 1;
+}
+
+.nav-link {
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--muted);
+  padding: 8px 12px;
+  border-radius: 10px;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.nav-link:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.05);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.nav-cta:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  position: relative;
+  padding-block: clamp(56px, 9vw, 104px) clamp(36px, 5vw, 56px);
+  text-align: center;
+}
+
+.hero-glow {
+  position: absolute;
+  top: -120px;
+  left: 50%;
+  width: min(760px, 90vw);
+  height: 420px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(124, 92, 255, 0.28),
+    transparent 66%
+  );
+  filter: blur(20px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 15px 7px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(10px);
+}
+
+.hero-badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(94, 230, 168, 0.14);
+  animation: pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 8px rgba(94, 230, 168, 0.03);
+  }
+}
+
+.hero h1 {
+  margin: 22px auto 0;
+  max-width: 14em;
+  font-size: clamp(38px, 7vw, 72px);
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+  font-weight: 850;
+  background: linear-gradient(
+    100deg,
+    #ffffff 8%,
+    #c9c2ff 38%,
+    #8be9ff 68%,
+    #ffc2dd 96%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-wrap: balance;
+}
+
+.hero h1 .accent {
+  display: inline-block;
+  background: linear-gradient(120deg, #8be9ff, #c4b5fd 60%, #ff9ec7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-sub {
+  margin: 20px auto 0;
+  max-width: 36em;
+  font-size: clamp(15px, 1.8vw, 17px);
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.hero-sub strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.hero-actions .btn {
+  min-height: 50px;
+  padding-inline: 26px;
+  font-size: 15.5px;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  width: min(660px, 100%);
+  margin: 44px auto 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hero-stats li {
+  padding: 14px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+}
+
+.hero-stats b {
+  display: block;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.hero-stats span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted-soft);
+}
+
+/* ---------- 游戏列表 ---------- */
+
+.games-section {
+  padding-block: clamp(28px, 5vw, 56px) 10px;
+  scroll-margin-top: 84px;
+}
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 32px);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.section-head h2 .count {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--muted);
+  vertical-align: 4px;
+}
+
+.section-head p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+.search {
+  position: relative;
+  width: min(300px, 100%);
+}
+
+.search svg {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+  color: var(--muted-soft);
+  pointer-events: none;
+}
+
+.search input {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px 0 40px;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.18s ease, background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.search input::placeholder {
+  color: var(--muted-soft);
+}
+
+.search input:focus {
+  border-color: rgba(34, 211, 238, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.1);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.chip {
+  height: 34px;
+  padding: 0 15px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 550;
+  transition: color 0.18s ease, background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.chip:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.chip[aria-pressed="true"] {
+  color: #0a0c14;
+  background: linear-gradient(135deg, #8be9ff, #c4b5fd);
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.game-card {
+  --c1: #7c5cff;
+  --c2: #22d3ee;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.055),
+    rgba(255, 255, 255, 0.02)
+  );
+  overflow: hidden;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1),
+    border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.game-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    420px 220px at 50% -10%,
+    color-mix(in srgb, var(--c2) 22%, transparent),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.game-card:hover,
+.game-card:focus-visible {
+  transform: translateY(-5px);
+  border-color: color-mix(in srgb, var(--c2) 40%, var(--line));
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45),
+    0 0 0 1px color-mix(in srgb, var(--c2) 14%, transparent);
+}
+
+.game-card:hover::after,
+.game-card:focus-visible::after {
+  opacity: 1;
+}
+
+.card-art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 132px;
+  background: radial-gradient(
+      120% 150% at 20% 0%,
+      color-mix(in srgb, var(--c1) 55%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      120% 150% at 92% 18%,
+      color-mix(in srgb, var(--c2) 45%, transparent),
+      transparent 60%
+    ),
+    rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.card-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.16) 1px,
+    transparent 1px
+  );
+  background-size: 16px 16px;
+  mask-image: radial-gradient(ellipse at 50% 50%, #000 10%, transparent 72%);
+  opacity: 0.5;
+}
+
+.card-emoji {
+  position: relative;
+  font-size: 54px;
+  line-height: 1;
+  filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.45));
+  transform: translateY(2px) rotate(-3deg);
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+
+.game-card:hover .card-emoji {
+  transform: translateY(-2px) rotate(2deg) scale(1.06);
+}
+
+.card-tag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(8, 10, 18, 0.42);
+  backdrop-filter: blur(8px);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 5px;
+  padding: 16px 18px 17px;
+}
+
+.card-body h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.card-body p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  min-height: 2.9em;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.card-best {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--muted-soft);
+}
+
+.card-best.is-record {
+  color: var(--yellow);
+}
+
+.card-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--c2) 74%, white);
+  transition: gap 0.18s ease;
+}
+
+.game-card:hover .card-go {
+  gap: 9px;
+}
+
+.card-go svg {
+  width: 13px;
+  height: 13px;
+}
+
+.empty-state {
+  display: none;
+  padding: 56px 20px;
+  text-align: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: 20px;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+.empty-state b {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 34px;
+  line-height: 1.2;
+}
+
+.empty-state.is-visible {
+  display: block;
+}
+
+/* ---------- 特性 ---------- */
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  margin-top: clamp(40px, 6vw, 64px);
+}
+
+.feature {
+  padding: 22px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.feature-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  font-size: 19px;
+  background: rgba(124, 92, 255, 0.16);
+  border: 1px solid rgba(124, 92, 255, 0.28);
+}
+
+.feature h3 {
+  margin: 0 0 5px;
+  font-size: 15.5px;
+  font-weight: 700;
+}
+
+.feature p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- 页脚 ---------- */
+
+.site-foot {
+  margin-top: clamp(48px, 8vw, 84px);
+  border-top: 1px solid var(--line);
+  background: rgba(8, 10, 18, 0.5);
+}
+
+.foot-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-block: 26px;
+  font-size: 13px;
+  color: var(--muted-soft);
+}
+
+.foot-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 550;
+}
+
+.foot-brand .mini-mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #0a0c14;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+}
+
+.foot-links {
+  display: flex;
+  gap: 6px;
+}
+
+.foot-links a {
+  padding: 4px 9px;
+  border-radius: 8px;
+  color: var(--muted-soft);
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.foot-links a:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.heart {
+  color: var(--pink);
+}
+
+/* ---------- 入场动画 ---------- */
+
+.reveal.is-in {
+  animation: card-in 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* ---------- 响应式 ---------- */
+
+@media (max-width: 780px) {
+  .wrap {
+    padding-inline: 18px;
+  }
+
+  .nav-link {
+    display: none;
+  }
+
+  .brand-name span {
+    display: none;
+  }
+
+  .hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 34px;
+  }
+
+  .games-section {
+    padding-top: 34px;
+  }
+
+  .section-head {
+    align-items: stretch;
+  }
+
+  .search {
+    width: 100%;
+  }
+
+  .game-grid {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 12px;
+  }
+
+  .card-art {
+    height: 112px;
+  }
+
+  .card-emoji {
+    font-size: 46px;
+  }
+}
+
+@media (max-width: 520px) {
+  .brand-name {
+    display: none;
+  }
+
+  .hero {
+    padding-top: 40px;
+  }
+
+  .hero h1 {
+    font-size: clamp(34px, 11vw, 46px);
+  }
+
+  .hero-actions .btn {
+    flex: 1 1 45%;
+    min-height: 46px;
+    padding-inline: 14px;
+  }
+
+  .game-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-art {
+    height: 104px;
+  }
+
+  .card-body p {
+    min-height: 0;
+  }
+
+  .foot-inner {
+    justify-content: center;
+    text-align: center;
+  }
+}

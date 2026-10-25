@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>贪吃蛇 · 崔彦斌的游戏空间</title>
+    <meta name="description" content="经典贪吃蛇小游戏：吃掉果实不断变长，别撞墙也别咬到自己。支持键盘、滑动和虚拟方向键。" />
+    <meta name="theme-color" content="#080a12" />
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/css/base.css" />
+    <link rel="stylesheet" href="../../assets/css/game.css" />
+  </head>
+  <body class="game-page">
+    <header class="page-head">
+      <a class="back-link" href="../../index.html"><span aria-hidden="true">←</span> 游戏空间</a>
+      <h1 class="page-title">贪吃蛇</h1>
+      <button class="icon-btn" type="button" data-sound-toggle aria-pressed="true" aria-label="关闭音效" title="关闭音效">
+        <span data-sound-icon>🔊</span>
+      </button>
+    </header>
+
+    <main class="game-shell">
+      <div class="hud">
+        <div class="hud-item"><span>得分</span><strong id="score">0</strong></div>
+        <div class="hud-item"><span>最高分</span><strong id="best">0</strong></div>
+        <div class="hud-item"><span>速度</span><strong id="speed">1</strong></div>
+      </div>
+
+      <div class="stage is-square snake-stage">
+        <canvas id="board" width="560" height="560" aria-label="贪吃蛇游戏区域"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="overlay-card">
+            <p class="overlay-kicker" id="kicker">准备开始</p>
+            <h2 id="overlayTitle">贪吃蛇</h2>
+            <p id="overlayText">吃掉红色果实让身体变长，撞墙或咬到自己就结束。</p>
+            <div class="overlay-actions">
+              <button class="btn primary" id="primaryBtn" type="button">开始游戏</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="touch-pad" aria-label="方向控制">
+        <button class="touch-btn up" type="button" data-dir="up" aria-label="向上">▲</button>
+        <button class="touch-btn left" type="button" data-dir="left" aria-label="向左">◀</button>
+        <button class="touch-btn down" type="button" data-dir="down" aria-label="向下">▼</button>
+        <button class="touch-btn right" type="button" data-dir="right" aria-label="向右">▶</button>
+      </div>
+
+      <p class="hint">
+        电脑：<kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> 或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 控制 ·
+        <kbd>空格</kbd> 暂停<br />
+        手机：在棋盘上滑动，或使用下方方向键
+      </p>
+
+      <div class="controls">
+        <button class="btn ghost small" id="restartBtn" type="button">重新开始</button>
+      </div>
+    </main>
+
+    <footer class="page-foot">
+      <a href="../../index.html">← 返回全部游戏</a> · 崔彦斌的游戏空间
+    </footer>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="snake.js"></script>
+  </body>
+</html>
