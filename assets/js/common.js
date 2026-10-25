@@ -45,6 +45,7 @@
   /* 数值越小越好的项目 */
   var LOWER_IS_BETTER = {
     minesweeper: true,
+    "minesweeper.v2": true,
     memory: true
   };
 

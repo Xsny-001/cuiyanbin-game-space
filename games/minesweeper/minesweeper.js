@@ -49,6 +49,7 @@
   var RECORD_SCHEMA = 2;
   var RECORD_PREFIX = "minesweeper.v" + RECORD_SCHEMA + ".best.";
   var RECORD_SCHEMA_KEY = "minesweeper.records.schema";
+  var GLOBAL_RECORD_ID = "minesweeper.v2";
   var LEVEL_KEYS = ["easy", "medium", "hard"];
 
   /* ---------------- 基础 ---------------- */
@@ -103,6 +104,7 @@
       store.remove("minesweeper.best." + key);
     });
     store.remove("best.minesweeper");
+    store.remove("best." + GLOBAL_RECORD_ID);
     store.set(RECORD_SCHEMA_KEY, RECORD_SCHEMA);
   }
 
@@ -415,8 +417,8 @@
     timerEl.textContent = String(seconds);
 
     var record = saveBest(levelKey, seconds, elapsed);
-    // 首页“最快”是跨难度汇总纪录，仅用真实胜利成绩更新
-    scores.submit("minesweeper", seconds);
+    // 首页“最快”使用独立的 v2 汇总键，不再读取被污染的旧键
+    scores.submit(GLOBAL_RECORD_ID, seconds);
 
     // 不自动插旗：剩余雷数始终等于“总雷数 − 玩家已插旗数”
     updateMineCount();
