@@ -1,0 +1,13 @@
+{
+  "name": "cuiyanbin-game-space",
+  "version": "1.0.0",
+  "private": true,
+  "description": "崔彦斌的游戏空间 - 纯静态小游戏合集",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.152.0"
+  }
+}

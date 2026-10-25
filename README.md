@@ -1,6 +1,6 @@
 # 崔彦斌的游戏空间
 
-一个纯静态、零外部依赖的免费在线小游戏网站，包含 8 款经典小游戏。所有游戏都在浏览器本地运行，无需登录、没有广告、不加载任何第三方脚本或字体，可直接部署到 **Cloudflare Pages**（或任意静态托管）。
+一个纯静态、零外部依赖的免费在线小游戏网站，包含 8 款经典小游戏。所有游戏都在浏览器本地运行，无需登录、没有广告、不加载任何第三方脚本或字体，可直接部署到 **Cloudflare Workers**、**Cloudflare Pages**（或任意静态托管）。
 
 ## 游戏列表
 
@@ -50,6 +50,40 @@ npx serve .
 
 项目根目录的 `_headers` 会由 Cloudflare Pages 自动识别，用于设置安全响应头与缓存策略；`404.html` 会作为自定义 404 页面。
 
+## 部署到 Cloudflare Workers（静态资源）
+
+仓库已包含 `wrangler.jsonc`，使用 Workers 的静态资源功能，不需要编写任何 Worker 脚本，也不需要构建。
+
+### 方式一：连接 GitHub 自动部署
+
+1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → **Create application** → **GitHub**。
+2. 选择仓库 `Xsny-001/cuiyanbin-game-space`，生产分支选 `main`。
+3. Worker 名称填写 **`cuiyanbin-game-space`**（必须与 `wrangler.jsonc` 中的 `name` 一致）。
+4. 构建设置：
+   - **Build command**：`npm ci`
+   - **Deploy command**：`npx wrangler deploy`
+5. 点击 **Save and Deploy**，完成后会得到一个 `*.workers.dev` 域名。
+6. 之后每次推送到 `main` 都会自动重新部署。
+
+### 方式二：本地命令行部署
+
+```bash
+cd cuiyanbin-game-space
+npm install
+npx wrangler login
+npx wrangler deploy
+```
+
+首次部署会创建 Worker 并输出 `https://cuiyanbin-game-space.<你的子域>.workers.dev`。日常本地预览可运行 `npm run dev`。
+
+### 配置说明
+
+- `assets.directory` 指向仓库根目录 `.`，由 `.assetsignore` 排除 README、配置文件等非站点文件。
+- `not_found_handling: "404-page"` 让不存在的路径返回根目录的 `404.html`。
+- `_headers` 在 Workers 静态资源中同样生效，用于安全响应头与缓存策略。
+- 静态资源请求免费且不限量，无需数据库、环境变量或构建产物。
+- 绑定自定义域名：Worker → **Settings** → **Domains & Routes** → **Add custom domain**。
+
 ## 目录结构
 
 ```text
@@ -57,7 +91,10 @@ npx serve .
 ├── index.html                  # 首页：游戏列表、搜索、筛选
 ├── 404.html                    # 自定义 404
 ├── manifest.webmanifest        # PWA 基础信息
-├── _headers                    # Cloudflare Pages 响应头 / 缓存
+├── _headers                    # Cloudflare 响应头 / 缓存
+├── wrangler.jsonc              # Cloudflare Workers 部署配置
+├── package.json                # Wrangler 开发依赖与命令
+├── .assetsignore               # 不上传为静态资源的文件
 ├── assets/
 │   ├── css/base.css            # 设计变量、按钮、通用样式
 │   ├── css/site.css            # 首页样式
