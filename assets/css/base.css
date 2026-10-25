@@ -96,6 +96,10 @@ svg {
   border: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 /* ---------- 按钮 ---------- */
 
 .btn {

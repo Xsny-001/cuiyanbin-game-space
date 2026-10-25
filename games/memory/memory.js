@@ -162,9 +162,9 @@
 
   function win() {
     mode = "won";
+    elapsed = startedAt ? (performance.now() - startedAt) / 1000 : elapsed;
     stopTimer();
     elapsedAtWin = elapsed;
-    var seconds = Math.max(1, Math.round(elapsed));
     timeEl.textContent = utils.formatClock(elapsed);
 
     var result = scores.submit("memory", moves);

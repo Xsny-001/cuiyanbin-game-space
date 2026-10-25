@@ -46,6 +46,8 @@ npx serve .
 4. 点击 **Save and Deploy**。首次部署完成后会得到一个 `*.pages.dev` 域名。
 5. 之后每次推送到 `main` 都会自动重新部署；也可以在 Pages 项目里绑定自定义域名。
 
+> 不想连接 Git 也可以：在 Pages 中选择 **Direct Upload**，把整个项目文件夹（或 zip）直接拖进去即可，同样无需构建。
+
 项目根目录的 `_headers` 会由 Cloudflare Pages 自动识别，用于设置安全响应头与缓存策略；`404.html` 会作为自定义 404 页面。
 
 ## 目录结构

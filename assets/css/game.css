@@ -624,7 +624,7 @@ body.game-page {
    ============================================================ */
 
 .breakout-stage {
-  max-width: 540px;
+  max-width: clamp(270px, calc((100dvh - 260px) * 0.75), 540px);
 }
 
 /* ============================================================
@@ -823,6 +823,18 @@ body.game-page {
     width: auto;
     margin-inline: auto;
   }
+
+  .tetris-controls {
+    position: sticky;
+    bottom: 8px;
+    z-index: 8;
+    padding: 7px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(8, 10, 18, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
 }
 
 /* ============================================================
@@ -832,6 +844,8 @@ body.game-page {
 .whack-board {
   position: relative;
   width: 100%;
+  max-width: 470px;
+  margin-inline: auto;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -921,7 +935,7 @@ body.game-page {
 
 .hit-pop {
   position: absolute;
-  top: 12%;
+  top: 34%;
   left: 50%;
   z-index: 3;
   font-size: 15px;
@@ -951,7 +965,7 @@ body.game-page {
    ============================================================ */
 
 .gomoku-stage {
-  max-width: 580px;
+  max-width: clamp(300px, calc(100dvh - 320px), 580px);
 }
 
 .gomoku-status {

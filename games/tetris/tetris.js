@@ -533,6 +533,10 @@
       if (mode === "running") hardDrop();
       else if (mode === "idle") begin();
       else if (mode === "paused") resume();
+      else if (mode === "over") {
+        newGame();
+        begin();
+      }
       return;
     }
     if (key === "p" || key === "P") {

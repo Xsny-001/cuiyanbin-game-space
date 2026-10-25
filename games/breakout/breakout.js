@@ -121,6 +121,8 @@
 
   function launch() {
     if (game.mode !== "ready") return;
+    game.ball.x = game.paddle.x + game.paddle.w / 2;
+    game.ball.y = game.paddle.y - game.ball.r - 1;
     var speed = 5 + (game.level - 1) * 0.35;
     var angle = (Math.random() * 0.9 - 0.45);
     game.ball.vx = Math.sin(angle) * speed;
