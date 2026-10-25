@@ -45,6 +45,12 @@
   var pressTimer = null;
   var pressCell = null;
 
+  /* 纪录结构版本：v1 纪录已被首点假胜利污染，v2 起按难度独立存储 */
+  var RECORD_SCHEMA = 2;
+  var RECORD_PREFIX = "minesweeper.v" + RECORD_SCHEMA + ".best.";
+  var RECORD_SCHEMA_KEY = "minesweeper.records.schema";
+  var LEVEL_KEYS = ["easy", "medium", "hard"];
+
   /* ---------------- 基础 ---------------- */
 
   function neighborsOf(index) {
@@ -88,14 +94,70 @@
     }, 200);
   }
 
+  function ensureRecordSchema() {
+    var current = Number(store.get(RECORD_SCHEMA_KEY, 0));
+    if (current >= RECORD_SCHEMA) return;
+
+    // v1 的“1 秒”纪录来自首点误判，无法区分真伪，统一作废。
+    LEVEL_KEYS.forEach(function (key) {
+      store.remove("minesweeper.best." + key);
+    });
+    store.remove("best.minesweeper");
+    store.set(RECORD_SCHEMA_KEY, RECORD_SCHEMA);
+  }
+
+  function bestKey(level) {
+    return RECORD_PREFIX + level;
+  }
+
+  function readBest(level) {
+    var record = store.get(bestKey(level), null);
+    if (
+      record &&
+      typeof record === "object" &&
+      typeof record.seconds === "number" &&
+      isFinite(record.seconds) &&
+      record.seconds >= 0
+    ) {
+      return record.seconds;
+    }
+    // 兼容 v2 早期可能写入的纯数字形式
+    if (typeof record === "number" && isFinite(record) && record >= 0) {
+      return record;
+    }
+    if (record !== null) store.remove(bestKey(level));
+    return null;
+  }
+
+  function saveBest(level, seconds, elapsedSeconds) {
+    var previous = readBest(level);
+    var valid =
+      isFinite(seconds) &&
+      seconds > 0 &&
+      isFinite(elapsedSeconds) &&
+      elapsedSeconds > 0;
+    if (!valid) {
+      return { best: previous, isRecord: false };
+    }
+    if (previous !== null && seconds >= previous) {
+      return { best: previous, isRecord: false };
+    }
+    var saved = store.set(bestKey(level), {
+      seconds: seconds,
+      elapsedMs: Math.round(elapsedSeconds * 1000),
+      savedAt: Date.now()
+    });
+    if (!saved) return { best: previous, isRecord: false };
+    return { best: seconds, isRecord: true };
+  }
+
   function refreshBest() {
-    var value = store.get("minesweeper.best." + levelKey, null);
-    bestTimeEl.textContent =
-      typeof value === "number" && isFinite(value) ? value + " 秒" : "—";
+    var value = readBest(levelKey);
+    bestTimeEl.textContent = value === null ? "—" : value + " 秒";
   }
 
   function updateMineCount() {
-    minesLeftEl.textContent = Math.max(0, config.mines - flags);
+    minesLeftEl.textContent = String(config.mines - flags);
   }
 
   function updateDifficultyButtons() {
@@ -189,7 +251,8 @@
       }
     }
 
-    utils.shuffle(pool);
+    // utils.shuffle 返回新数组，必须接收返回值，否则雷会固定堆在左上角
+    pool = utils.shuffle(pool);
     for (var k = 0; k < config.mines; k++) {
       cells[pool[k]].mine = true;
     }
@@ -333,39 +396,40 @@
   }
 
   function checkWin() {
+    if (state !== "playing") return;
+
     var totalSafe = config.rows * config.cols - config.mines;
-    if (revealedCount < totalSafe) return;
+    if (revealedCount !== totalSafe) return;
+
+    // 再逐格核对，避免计数被复用或异常修改时误判
+    var safeRevealed = 0;
+    for (var i = 0; i < cells.length; i++) {
+      if (!cells[i].mine && cells[i].revealed) safeRevealed += 1;
+    }
+    if (safeRevealed !== totalSafe) return;
 
     state = "won";
     clearTimer();
     elapsed = currentSeconds();
-    var seconds = Math.max(1, Math.round(elapsed));
-    timerEl.textContent = seconds;
+    var seconds = Math.round(elapsed);
+    timerEl.textContent = String(seconds);
 
-    var key = "minesweeper.best." + levelKey;
-    var previous = store.get(key, null);
-    var isRecord = previous === null || seconds < previous;
-    if (isRecord) store.set(key, seconds);
+    var record = saveBest(levelKey, seconds, elapsed);
+    // 首页“最快”是跨难度汇总纪录，仅用真实胜利成绩更新
     scores.submit("minesweeper", seconds);
 
-    flags = config.mines;
-    cells.forEach(function (cell) {
-      if (cell.mine) {
-        cell.flagged = true;
-        renderCell(cell);
-      }
-    });
+    // 不自动插旗：剩余雷数始终等于“总雷数 − 玩家已插旗数”
     updateMineCount();
     refreshBest();
     sound.play("win");
 
-    if (isRecord) App.toast("新纪录：" + seconds + " 秒！");
+    if (record.isRecord) App.toast("新纪录：" + seconds + " 秒！");
 
     kickerEl.textContent = "排雷成功";
     titleEl.textContent = "安全了！";
     textEl.innerHTML =
       "用时 <b>" + seconds + "</b> 秒 · " + config.label + "难度" +
-      (isRecord ? " · 新纪录！" : "");
+      (record.isRecord ? " · 新纪录！" : "");
     primaryBtn.textContent = "再来一局";
     overlay.hidden = false;
   }
@@ -443,5 +507,6 @@
 
   /* ---------------- 启动 ---------------- */
 
+  ensureRecordSchema();
   newGame("easy");
 })();
