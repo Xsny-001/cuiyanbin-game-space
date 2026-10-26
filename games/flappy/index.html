@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, viewport-fit=cover" />
+    <title>Flappy Bird · 崔彦斌的游戏空间</title>
+    <meta
+      name="description"
+      content="Flappy Bird 像素小鸟小游戏：点击或按空格拍翅膀，穿过水管，挑战更高分。支持手机和电脑。"
+    />
+    <meta name="theme-color" content="#080a12" />
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../assets/css/base.css" />
+    <link rel="stylesheet" href="../../assets/css/game.css" />
+  </head>
+  <body class="game-page">
+    <header class="page-head">
+      <a class="back-link" href="../../index.html"><span aria-hidden="true">←</span> 游戏空间</a>
+      <h1 class="page-title">Flappy Bird</h1>
+      <button class="icon-btn" type="button" data-sound-toggle aria-pressed="true" aria-label="关闭音效" title="关闭音效">
+        <span data-sound-icon>🔊</span>
+      </button>
+    </header>
+
+    <main class="game-shell">
+      <div class="hud">
+        <div class="hud-item"><span>得分</span><strong id="score">0</strong></div>
+        <div class="hud-item"><span>最高分</span><strong id="best">0</strong></div>
+        <div class="hud-item"><span>状态</span><strong id="status">准备</strong></div>
+      </div>
+
+      <div class="stage flappy-stage" id="stage">
+        <canvas id="board" width="360" height="640" aria-label="Flappy Bird 游戏区域"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="overlay-card">
+            <p class="overlay-kicker" id="kicker">准备起飞</p>
+            <h2 id="overlayTitle">Flappy Bird</h2>
+            <p id="overlayText">点击画面、按空格或 ↑ 拍翅膀，穿过水管。撞到水管或地面就结束。</p>
+            <div class="overlay-actions">
+              <button class="btn primary" id="primaryBtn" type="button">开始游戏</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint">
+        点击画面 / 空格 / ↑ 拍翅膀 · 手机直接轻点屏幕<br />
+        每穿过一根水管得 1 分，速度会逐渐加快。
+      </p>
+
+      <div class="controls">
+        <button class="btn ghost small" id="restartBtn" type="button">重新开始</button>
+      </div>
+    </main>
+
+    <footer class="page-foot">
+      <a href="../../index.html">← 返回全部游戏</a> · 崔彦斌的游戏空间
+    </footer>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="flappy.js"></script>
+  </body>
+</html>

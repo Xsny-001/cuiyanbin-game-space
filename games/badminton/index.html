@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>像素羽毛球 · 崔彦斌的游戏空间</title>
+    <meta
+      name="description"
+      content="PIXEL BADMINTON 像素羽毛球：11 分制、左右选边、拖拽 / 摇杆 / 时机三种操作，球飞向你时还能触发过网滞空慢动作。"
+    />
+    <meta name="theme-color" content="#070a16" />
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="badminton.css" />
+  </head>
+  <body data-screen="menu" data-mode="0" data-orient="landscape">
+    <div id="app">
+      <a id="back" href="../../index.html"><span aria-hidden="true">←</span> 游戏空间</a>
+      <button
+        id="soundBtn"
+        type="button"
+        data-sound-toggle
+        aria-pressed="true"
+        aria-label="关闭音效"
+        title="关闭音效"
+      >
+        <span data-sound-icon>🔊</span>
+      </button>
+
+      <div id="stage">
+        <canvas id="cv" width="480" height="270" aria-label="像素羽毛球比赛场地"></canvas>
+      </div>
+
+      <div id="hud">
+        <div id="topbar">
+          <div class="scoreboard">
+            <div class="sb-side" id="sbL">
+              <span class="serve-dot"></span>
+              <span class="sb-name" id="nameL">P1</span>
+              <span class="sb-num" id="scL">0</span>
+            </div>
+            <div class="sb-colon">:</div>
+            <div class="sb-side" id="sbR">
+              <span class="sb-num" id="scR">0</span>
+              <span class="sb-name" id="nameR">P2</span>
+              <span class="serve-dot"></span>
+            </div>
+          </div>
+          <div id="slow">⏱ 滞 空 SLOW-MO</div>
+          <div id="gest"></div>
+          <div id="tip">选择位置与操作模式，然后开始比赛</div>
+          <div id="rotate">↻ 横屏可获得更大画面</div>
+        </div>
+        <div id="flash"></div>
+      </div>
+
+      <div id="ctrl">
+        <div class="joy" id="joyL"><div class="knob"></div><span>移动</span></div>
+        <div class="joy" id="joyR"><div class="knob"></div><span>挥拍</span></div>
+        <button id="swingBtn" type="button"><b>挥拍</b><small>SWING</small></button>
+      </div>
+
+      <div id="menu" class="panel">
+        <h1>PIXEL<br />BADMINTON</h1>
+        <div class="sub">像 素 羽 毛 球 · 11 分制</div>
+        <div class="row">
+          <div class="label">选择你的位置</div>
+          <div class="opts">
+            <button class="opt sel" type="button" data-side="L">P1 · 左场</button>
+            <button class="opt" type="button" data-side="R">P2 · 右场</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="label">操作模式</div>
+          <div class="opts">
+            <button class="opt sel" type="button" data-mode="0">拖拽</button>
+            <button class="opt" type="button" data-mode="1">摇杆</button>
+            <button class="opt" type="button" data-mode="2">时机</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="label">过网滞空 · 球飞向你时放慢时间</div>
+          <div class="opts">
+            <button class="opt sel" type="button" data-hang="1">开启（推荐）</button>
+            <button class="opt" type="button" data-hang="0">关闭</button>
+          </div>
+        </div>
+        <button class="big" id="startBtn" type="button">开始比赛</button>
+        <div class="help">
+          <b>拖拽</b> 鼠标 / 手指移动球拍，碰到球自动回击。<br />
+          <b>摇杆</b> 左摇杆移动，右摇杆朝网前 / 后场方向推一下挥拍。<br />
+          <b>时机</b> 球拍自动跟随，球进入范围时点「挥拍」或按空格。<br />
+          <b>键盘</b> 方向键 / WASD 移动，空格挥拍。<br />
+          先得 11 分且领先 2 分获胜；10 平后需拉开 2 分，15 分封顶。
+        </div>
+      </div>
+
+      <div id="result" class="panel hidden">
+        <div class="sub" id="resultKicker">比赛结束</div>
+        <h2 id="resultTitle">你赢了</h2>
+        <div class="result-score" id="resultScore">11 : 0</div>
+        <div class="sub" id="resultText">本场胜场已记录</div>
+        <div class="btns">
+          <button class="big" id="againBtn" type="button">再战一局</button>
+          <button class="big alt" id="menuBtn" type="button">返回菜单</button>
+        </div>
+        <div class="help">
+          成绩会保存在本机：首页显示累计胜场。<br />
+          返回菜单可以重新选择左右场和操作方式。
+        </div>
+      </div>
+    </div>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="badminton.js"></script>
+  </body>
+</html>

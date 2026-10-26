@@ -1,6 +1,6 @@
 # 崔彦斌的游戏空间
 
-一个纯静态、零外部依赖的免费在线小游戏网站，包含 8 款经典小游戏。所有游戏都在浏览器本地运行，无需登录、没有广告、不加载任何第三方脚本或字体，可直接部署到 **Cloudflare Workers**、**Cloudflare Pages**（或任意静态托管）。
+一个纯静态、零外部依赖的免费在线小游戏网站，包含 10 款经典小游戏。所有游戏都在浏览器本地运行，无需登录、没有广告、不加载任何第三方脚本或字体，可直接部署到 **Cloudflare Workers**、**Cloudflare Pages**（或任意静态托管）。
 
 ## 游戏列表
 
@@ -14,8 +14,19 @@
 | 🃏 记忆翻牌 | 休闲 / 益智 | 翻开卡片配对全部 8 对图案 | 最少步数 |
 | 🐹 打地鼠 | 休闲 / 反应 | 30 秒限时，金色地鼠 3 分 | 分数 |
 | ⚫ 五子棋 | 策略 / 益智 | 人机对战，先连成五子获胜 | 胜场 |
+| 🐤 Flappy Bird | 休闲 / 反应 | 点击拍翅膀，穿过水管，速度逐渐加快 | 分数 |
+| 🏸 像素羽毛球 | 休闲 / 动作 | 11 分制人机对战，三种操作，过网滞空慢动作 | 胜场 |
 
 所有游戏均支持手机触屏与电脑键盘；音效由 Web Audio 实时合成，没有音频文件。
+
+### 像素羽毛球操作说明
+
+- **拖拽**：鼠标或手指移动球拍，碰到羽毛球自动回击。
+- **摇杆**：左摇杆移动，右摇杆朝网前/后场方向推一下挥拍。
+- **时机**：球拍自动跟随，羽毛球进入范围时点「挥拍」或按空格。
+- 键盘统一支持方向键 / WASD 移动、空格挥拍。
+- 发球自动进行；先得 11 分且领先 2 分获胜，10 平后需拉开 2 分，15 分封顶。
+- 开启「过网滞空」后，球飞向自己时会触发短暂慢动作，便于反应。
 
 ## 本地预览
 
@@ -110,7 +121,9 @@ npx wrangler deploy
     ├── minesweeper/            # 扫雷
     ├── memory/                 # 记忆翻牌
     ├── whack/                  # 打地鼠
-    └── gomoku/                 # 五子棋
+    ├── gomoku/                 # 五子棋
+    ├── flappy/                 # Flappy Bird
+    └── badminton/              # 像素羽毛球
 ```
 
 每个游戏目录都是独立的 `index.html` + 游戏脚本 + 共用样式，没有打包步骤。
@@ -129,11 +142,14 @@ npx wrangler deploy
 | `cyb.best.2048` | 2048 最高分 |
 | `cyb.best.tetris` | 俄罗斯方块最高分 |
 | `cyb.best.breakout` | 打砖块最高分 |
-| `cyb.best.minesweeper` | 扫雷最快用时（秒） |
-| `cyb.minesweeper.best.easy/medium/hard` | 各难度最快用时 |
+| `cyb.best.minesweeper.v2` | 扫雷跨难度最快用时（秒，v2） |
+| `cyb.minesweeper.v2.best.easy/medium/hard` | 扫雷各难度纪录（秒、毫秒、写入时间） |
 | `cyb.best.memory` | 记忆翻牌最少步数 |
 | `cyb.best.whack` | 打地鼠最高分 |
 | `cyb.wins.gomoku` / `cyb.losses.gomoku` | 五子棋胜 / 负场 |
+| `cyb.best.flappy` | Flappy Bird 最高分 |
+| `cyb.wins.badminton` / `cyb.losses.badminton` | 像素羽毛球胜 / 负场 |
+| `cyb.badminton.settings` | 像素羽毛球上次选择的场地、操作模式与滞空设置 |
 
 ## 自定义
 

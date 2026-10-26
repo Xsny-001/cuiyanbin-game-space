@@ -1,0 +1,615 @@
+/* ============================================================
+   PIXEL BADMINTON · 像素羽毛球
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+  background: #070a16;
+  overflow: hidden;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Courier New", monospace;
+  color: #e8ecff;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  font-size: 14px;
+  background: radial-gradient(circle at 50% 30%, #151b38 0%, #070a16 70%);
+}
+
+/* ---------- 返回 / 音效 ---------- */
+
+#back,
+#soundBtn {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 11px;
+  color: #b9c6f4;
+  background: rgba(8, 11, 26, 0.74);
+  border: 2px solid #33406f;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#back {
+  left: calc(10px + env(safe-area-inset-left));
+}
+
+#soundBtn {
+  right: calc(10px + env(safe-area-inset-right));
+  width: 38px;
+  justify-content: center;
+  padding: 0;
+  font-size: 15px;
+}
+
+#back:active,
+#soundBtn:active {
+  transform: translateY(1px);
+}
+
+/* ---------- 舞台 ---------- */
+
+#stage {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  width: min(96vw, calc(88vh * 16 / 9), 1100px);
+  aspect-ratio: 16 / 9;
+  box-shadow: 0 0 0 3px #26305c, 0 10px 40px rgba(0, 0, 0, 0.7);
+  background: #0a0e1d;
+  overflow: hidden;
+}
+
+#stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.025) 0,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: soft-light;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ---------- HUD ---------- */
+
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-size: 1em;
+}
+
+#topbar {
+  position: absolute;
+  top: calc(46px + env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.32em;
+}
+
+.scoreboard {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0.24em 0.6em;
+  background: rgba(8, 11, 26, 0.84);
+  border: 2px solid #4a5a9c;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
+}
+
+.sb-side {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.sb-name {
+  font-size: 0.7em;
+  letter-spacing: 0.06em;
+  color: #9fb0e6;
+  font-weight: 700;
+}
+
+.sb-num {
+  font-size: 1.45em;
+  font-weight: 700;
+  color: #fff;
+  min-width: 1.2em;
+  text-align: center;
+  line-height: 1;
+}
+
+.sb-colon {
+  font-size: 1.15em;
+  color: #6c7cc0;
+}
+
+.sb-side.me .sb-name,
+.sb-side.me .sb-num {
+  color: #ffd85e;
+}
+
+.serve-dot {
+  width: 0.5em;
+  height: 0.5em;
+  background: #4ce07a;
+  box-shadow: 0 0 0 1px #0b1020;
+  opacity: 0;
+}
+
+.sb-side.serving .serve-dot {
+  opacity: 1;
+}
+
+#tip {
+  text-align: center;
+  font-size: 0.8em;
+  padding: 0.28em 0.8em;
+  background: rgba(8, 11, 26, 0.74);
+  border: 2px solid #33406f;
+  letter-spacing: 0.05em;
+  max-width: 94vw;
+  line-height: 1.4;
+}
+
+#tip .k {
+  color: #ffd85e;
+  font-weight: 700;
+}
+
+#flash {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.9em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ffd85e;
+  text-shadow: 3px 3px 0 #000;
+  opacity: 0;
+  transition: opacity 0.14s;
+  white-space: nowrap;
+}
+
+#flash.on {
+  opacity: 1;
+}
+
+#gest {
+  font-size: 0.7em;
+  color: #9fb0e6;
+  opacity: 0.85;
+  white-space: nowrap;
+  max-width: 94vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#rotate {
+  font-size: 0.66em;
+  color: #7e8dd8;
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+#slow {
+  position: absolute;
+  top: 2.6em;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.66em;
+  letter-spacing: 0.14em;
+  color: #8fe8ff;
+  font-weight: 700;
+  padding: 0.15em 0.55em;
+  background: rgba(12, 40, 70, 0.82);
+  border: 2px solid #3f7fb0;
+  opacity: 0;
+  transition: opacity 0.12s;
+  white-space: nowrap;
+  text-shadow: 0 0 6px rgba(120, 220, 255, 0.6);
+}
+
+#slow.on {
+  opacity: 1;
+}
+
+body[data-orient="portrait"] #rotate {
+  opacity: 0.8;
+}
+
+body[data-orient="portrait"] #stage {
+  top: 39%;
+  width: min(97vw, calc(72vh * 16 / 9));
+}
+
+body[data-orient="portrait"] #topbar {
+  top: calc(44px + env(safe-area-inset-top));
+}
+
+body[data-orient="portrait"] #tip {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(132px + env(safe-area-inset-bottom));
+  max-width: 88vw;
+}
+
+body[data-orient="portrait"] #gest {
+  display: none;
+}
+
+/* ---------- 摇杆 / 挥拍按钮 ---------- */
+
+#ctrl {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+#ctrl > * {
+  pointer-events: auto;
+  display: none;
+}
+
+.joy {
+  position: absolute;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  width: var(--joy, 92px);
+  height: var(--joy, 92px);
+  border-radius: 50%;
+  background: rgba(14, 20, 44, 0.48);
+  border: 3px solid rgba(74, 90, 156, 0.9);
+  touch-action: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.joy span {
+  position: absolute;
+  bottom: 8%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: calc(var(--joy, 92px) * 0.145);
+  color: #b6c2ee;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+}
+
+.joy .knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40%;
+  height: 40%;
+  margin: -20% 0 0 -20%;
+  border-radius: 50%;
+  background: rgba(120, 140, 220, 0.62);
+  border: 2px solid rgba(195, 204, 255, 0.85);
+  will-change: transform;
+}
+
+#joyL {
+  left: calc(16px + env(safe-area-inset-left));
+}
+
+#joyR {
+  right: calc(16px + env(safe-area-inset-right));
+}
+
+#swingBtn {
+  position: absolute;
+  right: calc(18px + env(safe-area-inset-right));
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  width: var(--joyb, 100px);
+  height: var(--joyb, 100px);
+  border-radius: 50%;
+  font: inherit;
+  color: #141a33;
+  background: #4ce07a;
+  border: 3px solid #b6ffd0;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.6);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.06em;
+  cursor: pointer;
+  touch-action: none;
+}
+
+#swingBtn b {
+  font-size: calc(var(--joyb, 100px) * 0.2);
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+}
+
+#swingBtn small {
+  font-size: calc(var(--joyb, 100px) * 0.105);
+  letter-spacing: 0.16em;
+  opacity: 0.75;
+}
+
+#swingBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+body[data-mode="1"] #joyL,
+body[data-mode="1"] #joyR {
+  display: block;
+}
+
+body[data-mode="2"] #swingBtn {
+  display: flex;
+}
+
+body[data-screen="menu"] #ctrl > *,
+body[data-screen="result"] #ctrl > * {
+  display: none;
+}
+
+body[data-orient="landscape"] .joy {
+  background: rgba(14, 20, 44, 0.3);
+  border-color: rgba(74, 90, 156, 0.68);
+}
+
+body[data-orient="landscape"] .joy .knob {
+  background: rgba(120, 140, 220, 0.5);
+  border-color: rgba(195, 204, 255, 0.7);
+}
+
+/* ---------- 面板 ---------- */
+
+.panel {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55em;
+  font-size: 1em;
+  text-align: center;
+  padding: calc(2.5% + env(safe-area-inset-top)) 5% calc(2.5% + env(safe-area-inset-bottom));
+  background: rgba(6, 9, 20, 0.95);
+  overflow-y: auto;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel.hidden {
+  display: none;
+}
+
+h1 {
+  font-size: min(2.2em, 6.6vh);
+  letter-spacing: 0.1em;
+  color: #ffd85e;
+  text-shadow: 3px 3px 0 #b3421f, 6px 6px 0 rgba(0, 0, 0, 0.5);
+  line-height: 1.08;
+}
+
+h2 {
+  font-size: 1.7em;
+  letter-spacing: 0.08em;
+  color: #ffd85e;
+}
+
+.sub {
+  font-size: 0.8em;
+  color: #8fa0d8;
+  letter-spacing: 0.05em;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.32em;
+  width: 100%;
+  max-width: 22em;
+}
+
+.label {
+  font-size: 0.78em;
+  color: #8fa0d8;
+  letter-spacing: 0.08em;
+}
+
+.opts {
+  display: flex;
+  gap: 0.5em;
+  width: 100%;
+}
+
+.opt {
+  flex: 1;
+  padding: 0.55em 0.3em;
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+  color: #c7d2ff;
+  background: #1c2450;
+  border: 2px solid #3d4c85;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
+}
+
+.opt.sel {
+  background: #ffd85e;
+  color: #141a33;
+  border-color: #fff2b8;
+  font-weight: 700;
+}
+
+button.big {
+  margin-top: 0.15em;
+  padding: 0.55em 1.7em;
+  font: inherit;
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  color: #141a33;
+  background: #4ce07a;
+  border: 2px solid #b6ffd0;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.6);
+}
+
+button.big:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+button.big.alt {
+  color: #dbe4ff;
+  background: #232c58;
+  border-color: #4a5a9c;
+}
+
+.help {
+  font-size: 0.72em;
+  line-height: 1.6;
+  color: #93a3d6;
+  max-width: 27em;
+  text-align: left;
+  border: 2px solid #2b3566;
+  padding: 0.5em 0.7em;
+  background: rgba(20, 26, 54, 0.6);
+}
+
+.help b {
+  color: #ffd85e;
+}
+
+.help .en {
+  color: #5f6ea8;
+}
+
+.btns {
+  display: flex;
+  gap: 0.6em;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.result-score {
+  font-size: 2.3em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+
+.result-score span {
+  color: #ffd85e;
+}
+
+/* ---------- 矮屏压缩 ---------- */
+
+@media (max-height: 840px) {
+  .panel {
+    gap: 0.4em;
+  }
+  h1 {
+    font-size: min(1.9em, 6vh);
+  }
+  .sub {
+    font-size: 0.74em;
+  }
+  .row {
+    gap: 0.26em;
+  }
+  .label {
+    font-size: 0.72em;
+  }
+  .opt {
+    padding: 0.42em 0.3em;
+    font-size: 0.8em;
+  }
+  .help {
+    font-size: 0.68em;
+    line-height: 1.45;
+    padding: 0.45em 0.65em;
+  }
+  button.big {
+    padding: 0.5em 1.5em;
+  }
+}
+
+@media (max-height: 520px) {
+  .panel {
+    gap: 0.36em;
+    padding: 2% 4%;
+  }
+  h1 {
+    font-size: min(1.6em, 10vh);
+    text-shadow: 2px 2px 0 #b3421f, 4px 4px 0 rgba(0, 0, 0, 0.5);
+  }
+  .help {
+    font-size: 0.64em;
+  }
+  #stage {
+    top: 46%;
+    width: min(94vw, calc(94vh * 16 / 9));
+  }
+  body[data-orient="portrait"] #stage {
+    top: 36%;
+  }
+}
+
+@media (max-width: 380px) {
+  .help {
+    font-size: 0.7em;
+  }
+  .opt {
+    font-size: 0.78em;
+  }
+  .scoreboard {
+    gap: 0.4em;
+    padding: 0.2em 0.45em;
+  }
+  .sb-num {
+    font-size: 1.25em;
+  }
+}
