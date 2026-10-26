@@ -1,0 +1,2237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>坦克之星 · Tank Stars · 崔彦斌的游戏空间</title>
+<meta name="description" content="回合制坦克对轰：调角度、算弹道、选子弹，与 AI 坦克一对一决胜负。">
+<meta name="theme-color" content="#0a0500">
+<link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml">
+<!-- 原版从 Google Fonts 加载 Black Ops One / Russo One，为保持零外链改为系统字体回退 -->
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #0a0500;
+  font-family: 'Russo One', 'Arial', sans-serif;
+  color: #fff;
+  position: fixed;
+  touch-action: none;
+}
+
+#game {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.ui-layer {
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+  z-index: 10;
+}
+
+.ui-layer > * { pointer-events: auto; }
+
+/* ===== 顶部 HUD ===== */
+.hud-top {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  pointer-events: none;
+}
+
+.player-card {
+  background: linear-gradient(135deg, rgba(0,0,0,0.78) 0%, rgba(30,20,10,0.78) 100%);
+  border: 2px solid rgba(255,200,80,0.25);
+  border-radius: 12px;
+  padding: 8px 14px;
+  min-width: 200px;
+  max-width: 320px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+  transition: all 0.3s;
+}
+
+.player-card.active {
+  border-color: #ffcb3d;
+  box-shadow: 0 0 28px rgba(255,203,61,0.45), inset 0 0 20px rgba(255,203,61,0.06);
+  transform: translateY(-2px);
+}
+
+.player-card.right { text-align: right; }
+
+.player-name {
+  font-size: 14px;
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-card.right .player-name { justify-content: flex-end; }
+
+.player-name .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #4a4; box-shadow: 0 0 8px #4a4;
+}
+.player-card.active .player-name .dot {
+  background: #ffcb3d; box-shadow: 0 0 12px #ffcb3d;
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse { 50% { opacity: 0.4; } }
+
+.hp-bar {
+  height: 12px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c41e3a 0%, #ff7a00 50%, #ffd23d 100%);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+  position: relative;
+}
+
+.hp-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%);
+}
+
+.hp-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+  z-index: 2;
+}
+
+.weapon-info {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #ffcb3d;
+  letter-spacing: 1px;
+}
+
+.player-card.right .weapon-info { text-align: right; }
+
+/* ===== 中央回合指示 ===== */
+.turn-indicator {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(255,203,61,0.18) 0%, rgba(0,0,0,0.7) 100%);
+  border: 2px solid #ffcb3d;
+  border-radius: 26px;
+  padding: 5px 22px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: #ffcb3d;
+  text-shadow: 0 0 10px rgba(255,203,61,0.6);
+  box-shadow: 0 0 20px rgba(255,203,61,0.3);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+  white-space: nowrap;
+}
+
+.turn-indicator.show { opacity: 1; }
+
+/* ===== 武器栏 ===== */
+.weapon-bar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 7px;
+  background: rgba(0,0,0,0.7);
+  padding: 7px;
+  border-radius: 12px;
+  border: 2px solid rgba(255,200,80,0.2);
+  backdrop-filter: blur(8px);
+  z-index: 20;
+}
+
+.weapon-slot {
+  width: 66px;
+  height: 70px;
+  background: linear-gradient(180deg, #2a1c0e 0%, #150c04 100%);
+  border: 2px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.weapon-slot:hover {
+  border-color: rgba(255,203,61,0.5);
+  transform: translateY(-2px);
+}
+
+.weapon-slot.selected {
+  border-color: #ffcb3d;
+  background: linear-gradient(180deg, #3d2a14 0%, #1f1408 100%);
+  box-shadow: 0 0 18px rgba(255,203,61,0.5), inset 0 0 12px rgba(255,203,61,0.1);
+  transform: translateY(-3px);
+}
+
+.weapon-slot.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.weapon-icon {
+  font-size: 22px;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8));
+}
+
+.weapon-name {
+  font-size: 8px;
+  margin-top: 3px;
+  color: #ccc;
+  letter-spacing: 0.5px;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.weapon-slot.selected .weapon-name { color: #ffcb3d; }
+
+.weapon-ammo {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  font-size: 10px;
+  color: #ff6b35;
+  font-weight: bold;
+}
+
+.weapon-key {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+}
+
+/* ===== 力度与角度条 ===== */
+.aim-panel {
+  position: absolute;
+  bottom: 105px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0,0,0,0.65);
+  padding: 8px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
+.aim-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.aim-label { color: #aaa; width: 32px; }
+.aim-value { color: #ffcb3d; width: 44px; text-align: right; font-weight: bold; }
+
+.aim-bar {
+  width: 180px;
+  height: 5px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.aim-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50 0%, #ffcb3d 60%, #ff3a3a 100%);
+  transition: width 0.1s;
+}
+
+/* ===== 开始菜单 ===== */
+.menu-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(30,15,5,0.85) 0%, rgba(0,0,0,0.95) 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.6s, visibility 0.6s;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.menu-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.menu-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 60% 70%, rgba(255,200,100,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 80% 20%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 40% 80%, rgba(255,180,80,0.4), transparent);
+  background-size: 200% 200%;
+  animation: starfield 20s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes starfield {
+  0% { background-position: 0 0; }
+  100% { background-position: 200% 200%; }
+}
+
+.title-block {
+  text-align: center;
+  margin-bottom: 30px;
+  position: relative;
+  z-index: 1;
+}
+
+.title-main {
+  font-family: 'Black Ops One', sans-serif;
+  font-size: clamp(40px, 6vw, 80px);
+  line-height: 1;
+  letter-spacing: 4px;
+  background: linear-gradient(180deg, #ffe680 0%, #ff8c1a 50%, #c41e3a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 20px rgba(255,140,30,0.4));
+  margin-bottom: 6px;
+}
+
+.title-sub {
+  font-family: 'Black Ops One', sans-serif;
+  font-size: clamp(14px, 2vw, 22px);
+  letter-spacing: 10px;
+  color: rgba(255,255,255,0.5);
+  margin-left: 10px;
+}
+
+.title-tag {
+  margin-top: 10px;
+  font-size: 12px;
+  letter-spacing: 6px;
+  color: #ffcb3d;
+  opacity: 0.8;
+}
+
+.menu-section-title {
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: #ffcb3d;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.tank-select-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  max-width: 560px;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 24px;
+}
+
+.tank-card {
+  background: linear-gradient(180deg, rgba(40,25,12,0.9) 0%, rgba(15,8,4,0.9) 100%);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+
+.tank-card:hover {
+  border-color: rgba(255,203,61,0.4);
+  transform: translateY(-2px);
+}
+
+.tank-card.selected {
+  border-color: #ffcb3d;
+  box-shadow: 0 0 20px rgba(255,203,61,0.4);
+  background: linear-gradient(180deg, rgba(60,40,18,0.9) 0%, rgba(30,18,8,0.9) 100%);
+}
+
+.tank-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tank-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.tank-card-name {
+  font-size: 15px;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.tank-card-desc {
+  font-size: 10px;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+}
+
+.tank-card-stats {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 9px;
+}
+
+.stat-item {
+  flex: 1;
+  background: rgba(0,0,0,0.4);
+  border-radius: 4px;
+  padding: 3px 5px;
+  text-align: center;
+}
+
+.stat-label { color: rgba(255,255,255,0.4); display: block; }
+.stat-value { color: #ffcb3d; font-weight: bold; }
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.menu-btn {
+  background: linear-gradient(180deg, #3a2614 0%, #1a0e06 100%);
+  border: 2px solid #ffcb3d;
+  color: #ffcb3d;
+  font-family: 'Russo One', sans-serif;
+  font-size: 16px;
+  letter-spacing: 3px;
+  padding: 12px 44px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s;
+  min-width: 260px;
+  position: relative;
+  overflow: hidden;
+}
+
+.menu-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,203,61,0.2) 50%, transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+
+.menu-btn:hover {
+  background: linear-gradient(180deg, #5a3a1e 0%, #2a1608 100%);
+  transform: scale(1.04);
+  box-shadow: 0 6px 28px rgba(255,203,61,0.3);
+}
+
+.menu-btn:hover::before { transform: translateX(100%); }
+
+.menu-btn.secondary {
+  border-color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  padding: 9px 28px;
+  min-width: 180px;
+}
+
+.menu-instructions {
+  margin-top: 20px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 1px;
+  text-align: center;
+  line-height: 1.8;
+  max-width: 500px;
+  position: relative;
+  z-index: 1;
+}
+
+.menu-instructions kbd {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-family: monospace;
+  color: #ffcb3d;
+  margin: 0 2px;
+}
+
+/* ===== 胜负界面 ===== */
+.result-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.95) 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s, visibility 0.5s;
+  padding: 20px;
+}
+
+.result-overlay.show { opacity: 1; visibility: visible; }
+
+.result-title {
+  font-family: 'Black Ops One', sans-serif;
+  font-size: clamp(40px, 6vw, 72px);
+  letter-spacing: 6px;
+  background: linear-gradient(180deg, #ffe680 0%, #ff8c1a 50%, #c41e3a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 20px rgba(255,140,30,0.6));
+  margin-bottom: 14px;
+  animation: titlePop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.result-title.lose {
+  background: linear-gradient(180deg, #888 0%, #444 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 20px rgba(100,100,100,0.4));
+}
+
+@keyframes titlePop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.result-sub {
+  font-size: 14px;
+  color: #ffcb3d;
+  letter-spacing: 4px;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.result-buttons {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ===== 通知提示 ===== */
+.toast {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(0,0,0,0.85);
+  border: 1px solid #ffcb3d;
+  color: #ffcb3d;
+  padding: 8px 22px;
+  border-radius: 8px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  opacity: 0;
+  transition: all 0.3s;
+  z-index: 50;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===== 移动端控制 ===== */
+.mobile-controls {
+  position: absolute;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+  display: none;
+  justify-content: space-between;
+  padding: 0 20px;
+  pointer-events: none;
+}
+
+.mobile-pad {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.mbtn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  border: 2px solid rgba(255,203,61,0.4);
+  color: #ffcb3d;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.mbtn:active {
+  background: rgba(255,203,61,0.3);
+  transform: scale(0.95);
+}
+
+.fire-btn {
+  width: 76px;
+  height: 76px;
+  background: linear-gradient(180deg, #c41e3a 0%, #6a0e1e 100%);
+  border: 3px solid #ff3a3a;
+  color: #fff;
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  box-shadow: 0 0 20px rgba(255,58,58,0.4);
+}
+
+@media (pointer: coarse) {
+  .mobile-controls { display: flex; }
+}
+
+@media (max-width: 740px) {
+  .player-card { min-width: 130px; max-width: 160px; padding: 6px 8px; }
+  .player-name { font-size: 11px; }
+  .hp-bar { height: 10px; }
+  .hp-text { font-size: 8px; }
+  .weapon-info { font-size: 9px; }
+  .weapon-slot { width: 50px; height: 54px; }
+  .weapon-icon { font-size: 16px; }
+  .weapon-name { font-size: 7px; }
+  .weapon-bar { padding: 4px; gap: 4px; }
+  .turn-indicator { font-size: 10px; padding: 4px 12px; top: 10px; }
+  .aim-panel { bottom: 80px; padding: 5px 10px; }
+  .aim-bar { width: 100px; }
+  .aim-row { font-size: 10px; }
+  .mobile-controls { bottom: 70px; padding: 0 12px; }
+  .mbtn { width: 42px; height: 42px; font-size: 14px; }
+  .fire-btn { width: 58px; height: 58px; font-size: 12px; }
+  .tank-select-grid { grid-template-columns: 1fr; }
+  .title-block { margin-bottom: 16px; }
+}
+
+  /* ---------- 站点导航：返回游戏空间（图标按钮，悬停展开文案） ---------- */
+  #back-link{position:fixed;top:calc(10px + env(safe-area-inset-top));
+    left:calc(10px + env(safe-area-inset-left));z-index:9999;
+    display:inline-flex;align-items:center;justify-content:center;gap:5px;
+    height:32px;width:32px;padding:0;opacity:.82;
+    color:#dfe7ff;background:rgba(8,11,26,.72);border:2px solid rgba(120,140,220,.45);border-radius:6px;
+    font:600 12px/1 ui-monospace,Menlo,Consolas,monospace;text-decoration:none;
+    transition:width .16s ease,opacity .16s ease,background .16s ease}
+  #back-link:hover,#back-link:focus-visible{width:96px;opacity:1;background:rgba(22,30,64,.94)}
+  #back-link svg{flex:0 0 auto}
+  #back-link em{display:none;font-style:normal;white-space:nowrap}
+  #back-link:hover em,#back-link:focus-visible em{display:block}
+
+  #back-link{top:92px}
+</style>
+</head>
+<body>
+  <a id="back-link" href="../../index.html" title="返回游戏空间" aria-label="返回游戏空间"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg><em>游戏空间</em></a>
+
+<div id="game">
+  <canvas id="canvas"></canvas>
+  
+  <div class="ui-layer">
+    <div class="hud-top">
+      <div class="player-card" id="p1Card">
+        <div class="player-name">
+          <span class="dot"></span>
+          <span id="p1Name">玩家 1</span>
+        </div>
+        <div class="hp-bar">
+          <div class="hp-fill" id="p1HpFill" style="width:100%"></div>
+          <div class="hp-text" id="p1HpText">100 / 100</div>
+        </div>
+        <div class="weapon-info" id="p1Weapon">轻炮弹 · ∞</div>
+      </div>
+      
+      <div class="turn-indicator" id="turnIndicator">玩家 1 的回合</div>
+      
+      <div class="player-card right" id="p2Card">
+        <div class="player-name">
+          <span id="p2Name">玩家 2</span>
+          <span class="dot"></span>
+        </div>
+        <div class="hp-bar">
+          <div class="hp-fill" id="p2HpFill" style="width:100%"></div>
+          <div class="hp-text" id="p2HpText">100 / 100</div>
+        </div>
+        <div class="weapon-info" id="p2Weapon">轻炮弹 · ∞</div>
+      </div>
+    </div>
+    
+    <div class="aim-panel" id="aimPanel">
+      <div class="aim-row">
+        <span class="aim-label">角度</span>
+        <div class="aim-bar"><div class="aim-bar-fill" id="angleBar" style="width:50%"></div></div>
+        <span class="aim-value" id="angleVal">45°</span>
+      </div>
+      <div class="aim-row">
+        <span class="aim-label">力度</span>
+        <div class="aim-bar"><div class="aim-bar-fill" id="powerBar" style="width:50%"></div></div>
+        <span class="aim-value" id="powerVal">50</span>
+      </div>
+    </div>
+    
+    <div class="weapon-bar" id="weaponBar"></div>
+    
+    <div class="mobile-controls">
+      <div class="mobile-pad">
+        <div class="mbtn" id="mbtnLeft">◀</div>
+        <div class="mbtn" id="mbtnRight">▶</div>
+      </div>
+      <div class="mobile-pad">
+        <div class="mbtn" id="mbtnUp">▲</div>
+        <div class="mbtn" id="mbtnDown">▼</div>
+        <div class="mbtn fire-btn" id="mbtnFire">开火</div>
+      </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+  </div>
+  
+  <div class="menu-overlay" id="menu">
+    <div class="title-block">
+      <div class="title-main">TANK STARS</div>
+      <div class="title-sub">坦克之星</div>
+      <div class="title-tag">— 多重火力 —</div>
+    </div>
+    
+    <div class="menu-section-title">玩家 1 选择坦克</div>
+    <div class="tank-select-grid" id="p1TankGrid"></div>
+    
+    <div class="menu-section-title">玩家 2 / AI 选择坦克</div>
+    <div class="tank-select-grid" id="p2TankGrid"></div>
+    
+    <div class="menu-buttons">
+      <button class="menu-btn" data-mode="ai">单人战役 · 对战 AI</button>
+      <button class="menu-btn" data-mode="pvp">双人对战 · 同屏</button>
+    </div>
+    
+    <div class="menu-instructions">
+      <div>移动 <kbd>A</kbd> <kbd>D</kbd> · 调整角度 <kbd>W</kbd> <kbd>S</kbd> 或 <kbd>↑</kbd> <kbd>↓</kbd></div>
+      <div>力度 <kbd>←</kbd> <kbd>→</kbd> · 开火 <kbd>空格</kbd> · 切换武器 <kbd>1</kbd>~<kbd>5</kbd></div>
+      <div>移动端：屏幕底部按钮控制 · 或拖动屏幕瞄准</div>
+    </div>
+  </div>
+  
+  <div class="result-overlay" id="resultOverlay">
+    <div class="result-title" id="resultTitle">胜利</div>
+    <div class="result-sub" id="resultSub">坦克已被摧毁</div>
+    <div class="result-buttons">
+      <button class="menu-btn" id="btnReplay">再战一局</button>
+      <button class="menu-btn secondary" id="btnMenu">返回菜单</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/common.js"></script>
+<script>
+'use strict';
+
+// ============ 工具函数 ============
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+
+// ============ 坦克类型定义 ============
+const TANK_TYPES = {
+  classic: {
+    name: '经典型', icon: '🛡', color: '#3a8c3a', darkColor: '#1e4a1e', accentColor: '#5ab85a',
+    hp: 100, speed: 60, barrelLen: 32, barrelWidth: 6,
+    desc: '均衡的装甲与机动性，适合各种战场环境。',
+    stats: { hp: '★★★', speed: '★★★', power: '★★★' },
+    weapons: [
+      { name: '轻炮弹', icon: '●', ammo: Infinity, damage: 18, radius: 38, explosionColor: '#ff8c1a', trailColor: 'rgba(255,255,255,0.6)', explosionType: 'normal' },
+      { name: '重型弹', icon: '◉', ammo: 4, damage: 35, radius: 55, explosionColor: '#ff3a1a', trailColor: 'rgba(255,140,30,0.7)', explosionType: 'fireball' },
+      { name: '霰弹', icon: '※', ammo: 3, damage: 10, radius: 28, explosionColor: '#ffd23d', trailColor: 'rgba(255,210,61,0.6)', splitAt: 0.45, splitCount: 5, explosionType: 'normal' },
+      { name: '追踪弹', icon: '➤', ammo: 2, damage: 28, radius: 42, explosionColor: '#ff5a3a', trailColor: 'rgba(255,180,180,0.7)', homing: 0.04, explosionType: 'normal' },
+      { name: '核弹', icon: '☢', ammo: 1, damage: 75, radius: 95, explosionColor: '#ffffff', trailColor: 'rgba(255,255,200,0.8)', explosionType: 'nuke' }
+    ]
+  },
+  heavy: {
+    name: '重型装甲', icon: '⚔', color: '#8c3a3a', darkColor: '#4a1e1e', accentColor: '#b85a5a',
+    hp: 140, speed: 40, barrelLen: 30, barrelWidth: 9,
+    desc: '超高血量与重火力，移动缓慢但难以摧毁。',
+    stats: { hp: '★★★★★', speed: '★★', power: '★★★★' },
+    weapons: [
+      { name: '穿甲弹', icon: '⬢', ammo: Infinity, damage: 22, radius: 32, explosionColor: '#ffaa44', trailColor: 'rgba(255,170,68,0.6)', explosionType: 'normal' },
+      { name: '高爆弹', icon: '◈', ammo: 4, damage: 45, radius: 62, explosionColor: '#ff2a1a', trailColor: 'rgba(255,60,30,0.7)', explosionType: 'fireball' },
+      { name: '凝固弹', icon: '◆', ammo: 3, damage: 30, radius: 50, explosionColor: '#ff6600', trailColor: 'rgba(255,100,0,0.7)', burnRadius: 70, burnDuration: 2, explosionType: 'firestorm' },
+      { name: '钻地弹', icon: '▼', ammo: 2, damage: 55, radius: 48, explosionColor: '#aa6633', trailColor: 'rgba(170,100,50,0.7)', terrainDamage: 1.5, explosionType: 'normal' },
+      { name: '毁灭弹', icon: '✸', ammo: 1, damage: 90, radius: 105, explosionColor: '#ff0000', trailColor: 'rgba(255,50,0,0.8)', explosionType: 'firestorm' }
+    ]
+  },
+  scout: {
+    name: '高机动型', icon: '⚡', color: '#3a6a8c', darkColor: '#1e3a4a', accentColor: '#5a8ab8',
+    hp: 70, speed: 95, barrelLen: 30, barrelWidth: 5,
+    desc: '极速移动，血量较低，依赖灵活走位。',
+    stats: { hp: '★★', speed: '★★★★★', power: '★★' },
+    weapons: [
+      { name: '速射弹', icon: '•', ammo: Infinity, damage: 12, radius: 30, explosionColor: '#88ddff', trailColor: 'rgba(136,221,255,0.7)', explosionType: 'normal' },
+      { name: '集束弹', icon: '✦', ammo: 4, damage: 8, radius: 22, explosionColor: '#aaddff', trailColor: 'rgba(170,221,255,0.6)', splitAt: 0.35, splitCount: 7, explosionType: 'normal' },
+      { name: '电击弹', icon: '⚡', ammo: 3, damage: 25, radius: 40, explosionColor: '#66ddff', trailColor: 'rgba(100,200,255,0.8)', explosionType: 'electric' },
+      { name: '冰冻弹', icon: '❄', ammo: 2, damage: 20, radius: 45, explosionColor: '#aaddff', trailColor: 'rgba(170,221,255,0.8)', slowDuration: 1.5, explosionType: 'frost' },
+      { name: '闪电风暴', icon: '⚡', ammo: 1, damage: 65, radius: 85, explosionColor: '#ffffff', trailColor: 'rgba(200,230,255,0.9)', explosionType: 'electric' }
+    ]
+  },
+  nuclear: {
+    name: '核能型', icon: '☢', color: '#6a3a8c', darkColor: '#3a1e4a', accentColor: '#8a5ab8',
+    hp: 90, speed: 55, barrelLen: 34, barrelWidth: 7,
+    desc: '所有武器都带有辐射效果，终极毁灭力量。',
+    stats: { hp: '★★★', speed: '★★★', power: '★★★★★' },
+    weapons: [
+      { name: '辐射弹', icon: '⊙', ammo: Infinity, damage: 15, radius: 35, explosionColor: '#66ff44', trailColor: 'rgba(100,255,80,0.7)', radiationRadius: 45, radiationDuration: 1.5, explosionType: 'normal' },
+      { name: '聚变弹', icon: '◎', ammo: 4, damage: 40, radius: 60, explosionColor: '#44ff88', trailColor: 'rgba(80,255,140,0.7)', radiationRadius: 70, radiationDuration: 2, explosionType: 'fireball' },
+      { name: '离子弹', icon: '⬡', ammo: 3, damage: 30, radius: 45, explosionColor: '#88ffaa', trailColor: 'rgba(136,255,170,0.7)', explosionType: 'electric' },
+      { name: '反物质', icon: '⚫', ammo: 2, damage: 60, radius: 75, explosionColor: '#aa00ff', trailColor: 'rgba(170,0,255,0.8)', implosion: true, explosionType: 'implosion' },
+      { name: '终极核弹', icon: '☢', ammo: 1, damage: 110, radius: 120, explosionColor: '#ffffff', trailColor: 'rgba(255,255,255,0.9)', radiationRadius: 130, radiationDuration: 3, explosionType: 'nuke' }
+    ]
+  }
+};
+
+// ============ 游戏配置 ============
+const GRAVITY = 380;
+const WIND_MAX = 60;
+const MAX_POWER = 100;
+const POWER_TO_VEL = 9;
+const TANK_WIDTH = 50;
+const TANK_HEIGHT = 22;
+
+// ============ 全局状态 ============
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+const game = {
+  state: 'menu',
+  mode: 'pvp',
+  currentPlayer: 0,
+  players: [],
+  projectiles: [],
+  particles: [],
+  terrain: null,
+  wind: 0,
+  turnEndTimer: 0,
+  screenShake: 0,
+  isDragging: false,
+  bgClouds: [],
+  bgStars: [],
+  lastFiredBy: 0,
+  selectedTanks: { p1: 'classic', p2: 'heavy' }
+};
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (game.state !== 'menu' && game.terrain) initBackground();
+}
+
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+
+// ============ 背景元素 ============
+function initBackground() {
+  game.bgClouds = [];
+  for (let i = 0; i < 6; i++) {
+    game.bgClouds.push({
+      x: rand(0, W), y: rand(40, H * 0.35),
+      w: rand(80, 180), h: rand(20, 40),
+      speed: rand(5, 15), alpha: rand(0.08, 0.2)
+    });
+  }
+  game.bgStars = [];
+  for (let i = 0; i < 60; i++) {
+    game.bgStars.push({
+      x: rand(0, W), y: rand(0, H * 0.5),
+      r: rand(0.5, 1.8),
+      twinkle: rand(0, Math.PI * 2),
+      speed: rand(1, 3)
+    });
+  }
+}
+
+// ============ 地形类 ============
+class Terrain {
+  constructor() {
+    this.points = [];
+    this.generate();
+  }
+  generate() {
+    const segWidth = 6;
+    const segCount = Math.ceil(W / segWidth) + 1;
+    this.points = new Array(segCount);
+    const baseHeight = H * 0.68;
+    const seed1 = rand(0, 1000), seed2 = rand(0, 1000), seed3 = rand(0, 1000);
+    for (let i = 0; i < segCount; i++) {
+      const x = i * segWidth;
+      let y = baseHeight;
+      y += Math.sin((x + seed1) * 0.008) * 50;
+      y += Math.sin((x + seed2) * 0.025) * 25;
+      y += Math.sin((x + seed3) * 0.08) * 10;
+      y += Math.sin(x * 0.15 + seed1) * 4;
+      this.points[i] = { x, y };
+    }
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 1; i < segCount - 1; i++) {
+        this.points[i].y = (this.points[i-1].y + this.points[i].y * 2 + this.points[i+1].y) / 4;
+      }
+    }
+  }
+  getHeightAt(x) {
+    if (!this.points.length) return H;
+    if (x <= 0) return this.points[0].y;
+    if (x >= W) return this.points[this.points.length - 1].y;
+    const segWidth = this.points[1].x - this.points[0].x;
+    const idx = x / segWidth;
+    const i0 = Math.floor(idx);
+    const t = idx - i0;
+    return lerp(this.points[i0].y, this.points[Math.min(i0 + 1, this.points.length - 1)].y, t);
+  }
+  destroy(cx, cy, r, mult = 1) {
+    const radius = r * mult;
+    for (let p of this.points) {
+      const dx = p.x - cx, dy = p.y - cy;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < radius) {
+        const depth = Math.sqrt(radius*radius - d*d);
+        p.y += depth * 0.85;
+        p.y += rand(-2, 2);
+      }
+    }
+    const segWidth = this.points[1].x - this.points[0].x;
+    const startIdx = Math.max(1, Math.floor((cx - radius * 1.2) / segWidth));
+    const endIdx = Math.min(this.points.length - 2, Math.ceil((cx + radius * 1.2) / segWidth));
+    for (let i = startIdx; i <= endIdx; i++) {
+      this.points[i].y = (this.points[i-1].y + this.points[i].y + this.points[i+1].y) / 3;
+    }
+  }
+  draw(ctx) {
+    ctx.fillStyle = 'rgba(40, 25, 15, 0.6)';
+    ctx.beginPath(); ctx.moveTo(0, H);
+    for (let i = 0; i <= W; i += 30) ctx.lineTo(i, H * 0.55 + Math.sin(i * 0.005 + 2) * 30 + Math.sin(i * 0.012) * 15);
+    ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    
+    ctx.fillStyle = 'rgba(60, 35, 20, 0.7)';
+    ctx.beginPath(); ctx.moveTo(0, H);
+    for (let i = 0; i <= W; i += 25) ctx.lineTo(i, H * 0.62 + Math.sin(i * 0.008 + 5) * 20 + Math.sin(i * 0.02) * 10);
+    ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    
+    const grad = ctx.createLinearGradient(0, H * 0.5, 0, H);
+    grad.addColorStop(0, '#3d6b1c'); grad.addColorStop(0.05, '#5a3a1e');
+    grad.addColorStop(0.4, '#3d2814'); grad.addColorStop(1, '#1f1408');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(this.points[0].x, this.points[0].y);
+    for (let i = 1; i < this.points.length; i++) ctx.lineTo(this.points[i].x, this.points[i].y);
+    ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    
+    ctx.strokeStyle = 'rgba(120, 200, 80, 0.5)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(this.points[0].x, this.points[0].y);
+    for (let i = 1; i < this.points.length; i++) ctx.lineTo(this.points[i].x, this.points[i].y);
+    ctx.stroke();
+    
+    ctx.fillStyle = 'rgba(100, 160, 50, 0.4)';
+    for (let i = 0; i < this.points.length; i += 3) {
+      const p = this.points[i];
+      ctx.fillRect(p.x, p.y - 1, 2, 3);
+    }
+  }
+}
+
+// ============ 坦克绘制函数 ============
+function drawTankShape(ctx, x, y, type, color, darkColor, accentColor, hitFlash, facing) {
+  const w = TANK_WIDTH, h = TANK_HEIGHT;
+  
+  // 阴影
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath(); ctx.ellipse(x, y + 2, w * 0.55, 5, 0, 0, Math.PI * 2); ctx.fill();
+  
+  // 颜色处理
+  const bodyColor = hitFlash > 0 ? '#fff' : color;
+  const lightColor = hitFlash > 0 ? '#fff' : accentColor;
+  const darkColor2 = hitFlash > 0 ? '#ddd' : darkColor;
+  
+  if (type === 'classic') {
+    // 经典型 - 圆润标准坦克
+    // 履带
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.ellipse(x - w * 0.3, y - 4, w * 0.2, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + w * 0.3, y - 4, w * 0.2, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#333';
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath(); ctx.arc(x + i * 10, y - 4, 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+    // 车身 - 梯形
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.45, y - 4);
+    ctx.lineTo(x - w * 0.38, y - h);
+    ctx.lineTo(x + w * 0.38, y - h);
+    ctx.lineTo(x + w * 0.45, y - 4);
+    ctx.closePath(); ctx.fill();
+    // 高光
+    ctx.fillStyle = lightColor;
+    ctx.fillRect(x - w * 0.36, y - h + 2, w * 0.72, 3);
+    // 炮塔 - 圆形
+    ctx.fillStyle = hitFlash > 0 ? '#fff' : darkColor2;
+    ctx.beginPath(); ctx.arc(x, y - h * 0.85, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+    // 顶部小天线
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x, y - h * 0.85); ctx.lineTo(x + 2, y - h * 1.4); ctx.stroke();
+    ctx.fillStyle = '#ff3a3a';
+    ctx.beginPath(); ctx.arc(x + 2, y - h * 1.4, 1.5, 0, Math.PI * 2); ctx.fill();
+    
+  } else if (type === 'heavy') {
+    // 重型装甲 - 方正厚重，带铆钉和侧装甲
+    // 履带（更宽）
+    ctx.fillStyle = '#0a0a0a';
+    ctx.beginPath(); ctx.ellipse(x - w * 0.35, y - 5, w * 0.22, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + w * 0.35, y - 5, w * 0.22, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2a2a2a';
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath(); ctx.arc(x + i * 11, y - 5, 4, 0, Math.PI * 2); ctx.fill();
+    }
+    // 侧装甲板
+    ctx.fillStyle = darkColor2;
+    ctx.fillRect(x - w * 0.5, y - h * 0.9, 5, h * 0.7);
+    ctx.fillRect(x + w * 0.5 - 5, y - h * 0.9, 5, h * 0.7);
+    // 车身 - 方形
+    const bodyGrad = ctx.createLinearGradient(x, y - h, x, y);
+    bodyGrad.addColorStop(0, lightColor);
+    bodyGrad.addColorStop(0.5, bodyColor);
+    bodyGrad.addColorStop(1, darkColor2);
+    ctx.fillStyle = hitFlash > 0 ? '#fff' : bodyGrad;
+    ctx.beginPath();
+    ctx.roundRect(x - w * 0.45, y - h, w * 0.9, h * 0.8, 3);
+    ctx.fill();
+    // 装甲板纹理
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x - w * 0.4, y - h * 0.55); ctx.lineTo(x + w * 0.4, y - h * 0.55); ctx.stroke();
+    // 铆钉
+    ctx.fillStyle = '#444';
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.arc(x + i * 14, y - h * 0.7, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + i * 14, y - h * 0.35, 1.8, 0, Math.PI * 2); ctx.fill();
+    }
+    // 炮塔 - 六边形
+    ctx.fillStyle = hitFlash > 0 ? '#fff' : darkColor2;
+    ctx.beginPath();
+    const r = 11;
+    for (let i = 0; i < 6; i++) {
+      const ang = (i / 6) * Math.PI * 2 + Math.PI / 6;
+      const px = x + Math.cos(ang) * r, py = (y - h * 0.85) + Math.sin(ang) * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+    // 顶部舱盖
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(x, y - h * 0.85, 4, 0, Math.PI * 2); ctx.fill();
+    
+  } else if (type === 'scout') {
+    // 高机动型 - 流线型，轻盈
+    // 履带（细长）
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.ellipse(x - w * 0.32, y - 3, w * 0.18, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + w * 0.32, y - 3, w * 0.18, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#333';
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath(); ctx.arc(x + i * 9, y - 3, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+    // 车身 - 流线型三角
+    const bodyGrad = ctx.createLinearGradient(x, y - h, x, y);
+    bodyGrad.addColorStop(0, lightColor);
+    bodyGrad.addColorStop(1, bodyColor);
+    ctx.fillStyle = hitFlash > 0 ? '#fff' : bodyGrad;
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.4, y - 4);
+    ctx.lineTo(x - w * 0.25, y - h * 0.95);
+    ctx.lineTo(x + w * 0.25, y - h * 0.95);
+    ctx.lineTo(x + w * 0.4, y - 4);
+    ctx.closePath(); ctx.fill();
+    // 速度条纹
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(x - w * 0.2, y - h * 0.75, w * 0.4, 1.5);
+    ctx.fillRect(x - w * 0.15, y - h * 0.55, w * 0.3, 1.5);
+    // 炮塔 - 小型流线
+    ctx.fillStyle = hitFlash > 0 ? '#fff' : darkColor2;
+    ctx.beginPath();
+    ctx.ellipse(x, y - h * 0.85, 8, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+    // 雷达天线
+    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x + 4, y - h * 0.9); ctx.lineTo(x + 10, y - h * 1.5); ctx.stroke();
+    ctx.fillStyle = '#88ddff';
+    ctx.beginPath(); ctx.arc(x + 10, y - h * 1.5, 2, 0, Math.PI * 2); ctx.fill();
+    
+  } else if (type === 'nuclear') {
+    // 核能型 - 带发光核心和散热片
+    // 履带
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.ellipse(x - w * 0.32, y - 4, w * 0.2, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + w * 0.32, y - 4, w * 0.2, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#333';
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath(); ctx.arc(x + i * 10, y - 4, 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+    // 散热片（侧面突起）
+    ctx.fillStyle = darkColor2;
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(x - w * 0.48, y - h * 0.8 + i * 5, 4, 3);
+      ctx.fillRect(x + w * 0.48 - 4, y - h * 0.8 + i * 5, 4, 3);
+    }
+    // 车身 - 圆角矩形
+    const bodyGrad = ctx.createLinearGradient(x, y - h, x, y);
+    bodyGrad.addColorStop(0, lightColor);
+    bodyGrad.addColorStop(0.5, bodyColor);
+    bodyGrad.addColorStop(1, darkColor2);
+    ctx.fillStyle = hitFlash > 0 ? '#fff' : bodyGrad;
+    ctx.beginPath();
+    ctx.roundRect(x - w * 0.42, y - h, w * 0.84, h * 0.8, 5);
+    ctx.fill();
+    // 警告条纹
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(x - w * 0.35, y - h * 0.5, w * 0.7, 2);
+    ctx.fillStyle = '#ffcb3d';
+    for (let i = 0; i < 5; i++) {
+      ctx.fillRect(x - w * 0.35 + i * w * 0.14, y - h * 0.5, w * 0.07, 2);
+    }
+    // 发光核心
+    if (hitFlash <= 0) {
+      const coreGlow = ctx.createRadialGradient(x, y - h * 0.65, 0, x, y - h * 0.65, 12);
+      coreGlow.addColorStop(0, 'rgba(100,255,80,0.9)');
+      coreGlow.addColorStop(0.5, 'rgba(100,255,80,0.4)');
+      coreGlow.addColorStop(1, 'rgba(100,255,80,0)');
+      ctx.fillStyle = coreGlow;
+      ctx.fillRect(x - 15, y - h * 0.65 - 15, 30, 30);
+      // 核心本体
+      ctx.fillStyle = '#aaff88';
+      ctx.beginPath(); ctx.arc(x, y - h * 0.65, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(x, y - h * 0.65, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+    // 炮塔 - 带冷却管的圆形
+    ctx.fillStyle = hitFlash > 0 ? '#fff' : darkColor2;
+    ctx.beginPath(); ctx.arc(x, y - h * 0.85, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+    // 冷却管
+    ctx.strokeStyle = '#66ff44'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y - h * 0.85, 7, 0, Math.PI * 2); ctx.stroke();
+    // 辐射符号
+    ctx.fillStyle = '#66ff44';
+    ctx.font = 'bold 8px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('☢', x, y - h * 0.85);
+  }
+}
+
+// ============ 坦克类 ============
+class Tank {
+  constructor(x, name, tankType, isAI = false, facing = 1) {
+    const type = TANK_TYPES[tankType];
+    this.tankType = tankType;
+    this.type = type;
+    this.x = x;
+    this.name = name;
+    this.isAI = isAI;
+    this.facing = facing;
+    this.hp = type.hp;
+    this.maxHp = type.hp;
+    this.angle = 45;
+    this.power = 50;
+    this.fuel = 100;
+    this.maxFuel = 100;
+    this.alive = true;
+    this.weapons = type.weapons.map(w => ({ ...w, currentAmmo: w.ammo }));
+    this.currentWeapon = 0;
+    this.y = 0;
+    this.barrelTip = { x: 0, y: 0 };
+    this.hitFlash = 0;
+    this.lastShot = null;
+    this.aiState = null;
+    this.slowTimer = 0;
+    this.radiationTimer = 0;
+    this.color = type.color;
+  }
+  getSelectedWeapon() { return this.weapons[this.currentWeapon]; }
+  update(dt) {
+    this.y = game.terrain.getHeightAt(this.x);
+    const rad = this.angle * Math.PI / 180;
+    this.barrelTip = {
+      x: this.x + this.facing * Math.cos(rad) * this.type.barrelLen,
+      y: this.y - TANK_HEIGHT / 2 - Math.sin(rad) * this.type.barrelLen
+    };
+    if (this.hitFlash > 0) this.hitFlash -= dt * 3;
+    if (this.slowTimer > 0) this.slowTimer -= dt;
+    if (this.radiationTimer > 0) {
+      this.radiationTimer -= dt;
+      if (Math.random() < dt * 3) {
+        this.takeDamage(1);
+        spawnRadiationParticle(this.x + rand(-20, 20), this.y - rand(0, 30));
+      }
+    }
+  }
+  canMove() { return game.state === 'playing' && this.fuel > 0; }
+  move(dir, dt) {
+    if (!this.canMove()) return;
+    const speed = this.type.speed * (this.slowTimer > 0 ? 0.4 : 1);
+    const oldX = this.x;
+    this.x += dir * speed * dt;
+    this.x = clamp(this.x, 30, W - 30);
+    this.fuel = Math.max(0, this.fuel - Math.abs(this.x - oldX) * 0.8);
+  }
+  adjustAngle(delta) { this.angle = clamp(this.angle + delta, 5, 90); }
+  adjustPower(delta) { this.power = clamp(this.power + delta, 5, MAX_POWER); }
+  switchWeapon(idx) {
+    if (idx >= 0 && idx < this.weapons.length && this.weapons[idx].currentAmmo > 0) {
+      this.currentWeapon = idx; return true;
+    }
+    return false;
+  }
+  fire() {
+    const w = this.getSelectedWeapon();
+    if (w.currentAmmo <= 0 || game.state !== 'playing') return null;
+    const rad = this.angle * Math.PI / 180;
+    const v = this.power * POWER_TO_VEL;
+    const proj = new Projectile({
+      x: this.barrelTip.x, y: this.barrelTip.y,
+      vx: this.facing * Math.cos(rad) * v,
+      vy: -Math.sin(rad) * v,
+      weapon: w, ownerId: game.players.indexOf(this)
+    });
+    if (w.ammo !== Infinity) w.currentAmmo--;
+    this.fuel = 0;
+    game.lastFiredBy = game.players.indexOf(this);
+    // 开火反冲粒子
+    for (let i = 0; i < 8; i++) {
+      const ang = rand(-Math.PI/3, Math.PI/3) + (this.facing > 0 ? 0 : Math.PI);
+      game.particles.push(new Particle({
+        x: this.barrelTip.x, y: this.barrelTip.y,
+        vx: Math.cos(ang) * rand(50, 150),
+        vy: Math.sin(ang) * rand(50, 150),
+        life: 0.3, size: rand(3, 6),
+        color: '#ffcb3d', gravity: 100, type: 'circle'
+      }));
+    }
+    return proj;
+  }
+  takeDamage(dmg) {
+    this.hp = Math.max(0, this.hp - dmg);
+    this.hitFlash = 1;
+    if (this.hp <= 0) this.alive = false;
+  }
+  draw(ctx) {
+    if (!this.alive) return;
+    const x = this.x, y = this.y, h = TANK_HEIGHT;
+    
+    // 绘制坦克主体
+    drawTankShape(ctx, x, y, this.tankType, this.color, this.type.darkColor, this.type.accentColor, this.hitFlash, this.facing);
+    
+    // 绘制炮管
+    const rad = this.angle * Math.PI / 180;
+    const bw = this.type.barrelWidth;
+    const bl = this.type.barrelLen;
+    ctx.save();
+    ctx.translate(x, y - h * 0.85);
+    ctx.scale(this.facing, 1);
+    ctx.rotate(-rad);
+    
+    // 炮管底座
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(0, 0, bw/2 + 2, 0, Math.PI * 2); ctx.fill();
+    
+    // 炮管主体
+    if (this.tankType === 'heavy') {
+      // 重型 - 粗厚带制退器
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(0, -bw/2, bl - 5, bw);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(bl - 8, -bw/2 - 1, 3, bw + 2);
+      ctx.fillRect(bl - 3, -bw/2, 3, bw);
+    } else if (this.tankType === 'scout') {
+      // 侦察型 - 细长带散热环
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(0, -bw/2, bl, bw);
+      ctx.fillStyle = '#444';
+      for (let i = 1; i < 4; i++) {
+        ctx.fillRect(bl * i / 4 - 1, -bw/2 - 1, 1.5, bw + 2);
+      }
+    } else if (this.tankType === 'nuclear') {
+      // 核能型 - 带能量环
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(0, -bw/2, bl, bw);
+      // 能量环发光
+      ctx.fillStyle = 'rgba(100,255,80,0.6)';
+      ctx.fillRect(bl * 0.3, -bw/2 - 1, 2, bw + 2);
+      ctx.fillRect(bl * 0.6, -bw/2 - 1, 2, bw + 2);
+      // 炮口能量
+      if (game.state === 'playing' && game.players[game.currentPlayer] === this) {
+        ctx.fillStyle = 'rgba(100,255,80,0.4)';
+        ctx.beginPath(); ctx.arc(bl, 0, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    } else {
+      // 经典型 - 标准
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(0, -bw/2, bl, bw);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(bl - 3, -bw/2 - 1, 3, bw + 2);
+    }
+    ctx.restore();
+    
+    // 减速冰冻效果
+    if (this.slowTimer > 0) {
+      ctx.fillStyle = 'rgba(100, 200, 255, 0.3)';
+      ctx.beginPath(); ctx.roundRect(x - TANK_WIDTH/2 - 3, y - h - 3, TANK_WIDTH + 6, h + 6, 6); ctx.fill();
+      // 冰晶
+      ctx.fillStyle = 'rgba(170, 221, 255, 0.6)';
+      for (let i = 0; i < 4; i++) {
+        const ix = x + rand(-20, 20), iy = y - h + rand(0, h);
+        ctx.beginPath(); ctx.arc(ix, iy, 2, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // 辐射效果
+    if (this.radiationTimer > 0) {
+      ctx.fillStyle = `rgba(100, 255, 80, ${0.2 + Math.sin(performance.now() * 0.01) * 0.1})`;
+      ctx.beginPath(); ctx.roundRect(x - TANK_WIDTH/2 - 3, y - h - 3, TANK_WIDTH + 6, h + 6, 6); ctx.fill();
+    }
+    
+    // 血条
+    if (this.hp < this.maxHp) {
+      const bw2 = 44, bh = 4;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(x - bw2/2, y - h - 20, bw2, bh);
+      const hpRatio = this.hp / this.maxHp;
+      ctx.fillStyle = hpRatio > 0.5 ? '#4caf50' : (hpRatio > 0.25 ? '#ffcb3d' : '#ff3a3a');
+      ctx.fillRect(x - bw2/2, y - h - 20, bw2 * hpRatio, bh);
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1;
+      ctx.strokeRect(x - bw2/2, y - h - 20, bw2, bh);
+    }
+    
+    // 玩家标记
+    if (game.state === 'playing' && game.players[game.currentPlayer] === this) {
+      ctx.strokeStyle = '#ffcb3d'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(x, y - h/2, 38, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ffcb3d';
+      ctx.beginPath();
+      const arrowY = y - h - 30 + Math.sin(performance.now() * 0.005) * 3;
+      ctx.moveTo(x, arrowY); ctx.lineTo(x - 6, arrowY - 8); ctx.lineTo(x + 6, arrowY - 8);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  drawAimLine(ctx) {
+    if (game.state !== 'playing' || game.players[game.currentPlayer] !== this) return;
+    const rad = this.angle * Math.PI / 180;
+    const v = this.power * POWER_TO_VEL;
+    let px = this.barrelTip.x, py = this.barrelTip.y;
+    let pvx = this.facing * Math.cos(rad) * v, pvy = -Math.sin(rad) * v;
+    const dt = 0.025;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 203, 61, 0.7)'; ctx.lineWidth = 2; ctx.setLineDash([6, 8]);
+    ctx.beginPath(); ctx.moveTo(px, py);
+    let lastX = px, lastY = py;
+    for (let i = 0; i < 80; i++) {
+      pvy += GRAVITY * dt; pvx += game.wind * dt;
+      px += pvx * dt; py += pvy * dt;
+      if (px < 0 || px > W || py > H) break;
+      const terrainY = game.terrain.getHeightAt(px);
+      if (py >= terrainY) { ctx.lineTo(px, py); lastX = px; lastY = py; break; }
+      ctx.lineTo(px, py); lastX = px; lastY = py;
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255, 203, 61, 0.4)';
+    ctx.beginPath(); ctx.arc(lastX, lastY, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffcb3d'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.restore();
+  }
+  lightenColor(hex, amt) {
+    const c = parseInt(hex.slice(1), 16);
+    let r = (c >> 16) + amt, g = ((c >> 8) & 0xff) + amt, b = (c & 0xff) + amt;
+    r = clamp(r, 0, 255); g = clamp(g, 0, 255); b = clamp(b, 0, 255);
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+// ============ 投射物类 ============
+class Projectile {
+  constructor(opts) {
+    this.x = opts.x; this.y = opts.y; this.vx = opts.vx; this.vy = opts.vy;
+    this.weapon = opts.weapon; this.ownerId = opts.ownerId;
+    this.alive = true; this.trail = []; this.life = 0;
+    this.splitDone = false; this.target = null;
+  }
+  update(dt) {
+    if (!this.alive) return;
+    this.life += dt;
+    if (this.weapon.homing && this.life > 0.3) {
+      if (!this.target) {
+        for (let p of game.players) {
+          if (game.players.indexOf(p) !== this.ownerId && p.alive) { this.target = p; break; }
+        }
+      }
+      if (this.target && this.target.alive) {
+        const dx = this.target.x - this.x;
+        const dy = (this.target.y - TANK_HEIGHT) - this.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d > 0) {
+          const speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+          this.vx = lerp(this.vx, (dx / d) * speed, this.weapon.homing);
+          this.vy = lerp(this.vy, (dy / d) * speed, this.weapon.homing);
+        }
+      }
+    }
+    this.vy += GRAVITY * dt; this.vx += game.wind * dt;
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    this.trail.push({ x: this.x, y: this.y, life: 1 });
+    if (this.trail.length > 30) this.trail.shift();
+    for (let t of this.trail) t.life -= dt * 2;
+    
+    if (this.weapon.splitAt && !this.splitDone && this.life > 0.4 && this.vy > 0) {
+      this.splitDone = true;
+      const speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+      for (let i = 0; i < this.weapon.splitCount; i++) {
+        const baseAng = Math.atan2(this.vy, this.vx);
+        const ang = baseAng + (i - this.weapon.splitCount/2) * 0.25;
+        game.projectiles.push(new Projectile({
+          x: this.x, y: this.y,
+          vx: Math.cos(ang) * speed * 0.9, vy: Math.sin(ang) * speed * 0.9,
+          weapon: { ...this.weapon, splitAt: null }, ownerId: this.ownerId
+        }));
+      }
+      this.alive = false;
+      spawnExplosionParticles(this.x, this.y, this.weapon.explosionColor, 8, 0.5);
+      return;
+    }
+    
+    if (this.x < -50 || this.x > W + 50 || this.y > H + 50) { this.alive = false; return; }
+    if (this.y >= game.terrain.getHeightAt(this.x)) { this.explode(); return; }
+    for (let i = 0; i < game.players.length; i++) {
+      if (i === this.ownerId) continue;
+      const t = game.players[i];
+      if (!t.alive) continue;
+      const dx = this.x - t.x, dy = this.y - (t.y - TANK_HEIGHT/2);
+      if (Math.abs(dx) < TANK_WIDTH/2 && Math.abs(dy) < TANK_HEIGHT) { this.explode(); return; }
+    }
+  }
+  explode() {
+    this.alive = false;
+    const w = this.weapon;
+    game.screenShake = Math.min(25, w.radius * 0.3);
+    
+    const exType = w.explosionType || 'normal';
+    if (exType === 'nuke') spawnNukeExplosion(this.x, this.y, w.radius, w.explosionColor);
+    else if (exType === 'fireball') spawnFireballExplosion(this.x, this.y, w.radius, w.explosionColor);
+    else if (exType === 'firestorm') spawnFirestormExplosion(this.x, this.y, w.radius, w.explosionColor);
+    else if (exType === 'electric') spawnElectricExplosion(this.x, this.y, w.radius, w.explosionColor);
+    else if (exType === 'frost') spawnFrostExplosion(this.x, this.y, w.radius, w.explosionColor);
+    else if (exType === 'implosion') spawnImplosionExplosion(this.x, this.y, w.radius, w.explosionColor);
+    else spawnNormalExplosion(this.x, this.y, w.radius, w.explosionColor);
+    
+    game.terrain.destroy(this.x, this.y, w.radius, w.terrainDamage || 1);
+    
+    for (let i = 0; i < game.players.length; i++) {
+      const t = game.players[i];
+      if (!t.alive) continue;
+      const d = dist(this.x, this.y, t.x, t.y - TANK_HEIGHT/2);
+      if (d < w.radius + TANK_WIDTH/2) {
+        const dmg = Math.round(w.damage * (1 - (d / (w.radius + TANK_WIDTH/2))));
+        if (dmg > 0) { t.takeDamage(dmg); spawnDamageText(t.x, t.y - TANK_HEIGHT - 20, dmg); }
+      }
+      if (w.slowDuration && d < w.radius + TANK_WIDTH) {
+        t.slowTimer = Math.max(t.slowTimer, w.slowDuration);
+      }
+      if (w.radiationRadius && d < w.radiationRadius) {
+        t.radiationTimer = Math.max(t.radiationTimer, w.radiationDuration || 2);
+      }
+      if (w.burnRadius && d < w.burnRadius) {
+        t.radiationTimer = Math.max(t.radiationTimer, w.burnDuration || 2);
+      }
+    }
+  }
+  draw(ctx) {
+    for (let i = 0; i < this.trail.length; i++) {
+      const t = this.trail[i];
+      if (t.life <= 0) continue;
+      const r = (i / this.trail.length) * 4 * t.life;
+      ctx.fillStyle = this.weapon.trailColor.replace(/[\d.]+\)$/, `${t.life * 0.6})`);
+      ctx.beginPath(); ctx.arc(t.x, t.y, Math.max(0.5, r), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(Math.atan2(this.vy, this.vx));
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 12);
+    glow.addColorStop(0, this.weapon.explosionColor);
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glow; ctx.fillRect(-12, -12, 24, 24);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = this.weapon.explosionColor; ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ============ 粒子系统 ============
+class Particle {
+  constructor(opts) {
+    this.x = opts.x; this.y = opts.y; this.vx = opts.vx; this.vy = opts.vy;
+    this.life = opts.life; this.maxLife = opts.life;
+    this.size = opts.size; this.color = opts.color;
+    this.gravity = opts.gravity || 200; this.shrink = opts.shrink !== false;
+    this.type = opts.type || 'circle';
+    this.rotation = 0; this.rotSpeed = opts.rotSpeed || rand(-5, 5);
+    this.text = opts.text || '';
+    this.glow = opts.glow || false;
+  }
+  update(dt) {
+    this.life -= dt; this.vy += this.gravity * dt; this.vx *= 0.98;
+    this.x += this.vx * dt; this.y += this.vy * dt; this.rotation += this.rotSpeed * dt;
+  }
+  draw(ctx) {
+    if (this.life <= 0) return;
+    const t = this.life / this.maxLife;
+    const alpha = clamp(t, 0, 1);
+    const size = this.shrink ? this.size * t : this.size;
+    ctx.save(); ctx.globalAlpha = alpha;
+    if (this.type === 'spark') {
+      ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
+      ctx.fillStyle = this.color; ctx.fillRect(-size, -size/4, size * 2, size/2);
+    } else if (this.type === 'smoke') {
+      const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, size * 2);
+      if (this.color.startsWith('rgba')) grad.addColorStop(0, this.color.replace(/[\d.]+\)$/, `${alpha * 0.6})`));
+      else grad.addColorStop(0, this.color);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(this.x, this.y, size * 2, 0, Math.PI * 2); ctx.fill();
+    } else if (this.type === 'text') {
+      ctx.fillStyle = this.color; ctx.font = `bold ${this.size}px Russo One, sans-serif`;
+      ctx.textAlign = 'center'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+      ctx.strokeText(this.text, this.x, this.y); ctx.fillText(this.text, this.x, this.y);
+    } else if (this.type === 'lightning') {
+      ctx.strokeStyle = this.color; ctx.lineWidth = 2; ctx.shadowColor = this.color; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.moveTo(this.x, this.y);
+      let cx = this.x, cy = this.y;
+      for (let i = 0; i < 4; i++) {
+        cx += rand(-15, 15); cy += rand(-15, 15);
+        ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+    } else if (this.type === 'ring') {
+      ctx.strokeStyle = this.color; ctx.lineWidth = 3 * t; ctx.shadowColor = this.color; ctx.shadowBlur = 15;
+      ctx.beginPath(); ctx.arc(this.x, this.y, this.size * (1 - t) * 3, 0, Math.PI * 2); ctx.stroke();
+    } else {
+      if (this.glow) { ctx.shadowColor = this.color; ctx.shadowBlur = 10; }
+      ctx.fillStyle = this.color;
+      ctx.beginPath(); ctx.arc(this.x, this.y, Math.max(0.5, size), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// ====== 多种爆炸效果 ======
+function spawnNormalExplosion(x, y, radius, color) {
+  for (let i = 0; i < 20; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(60, 200) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 30,
+      life: rand(0.4, 0.9), size: rand(4, 10) * (radius / 40),
+      color: i % 3 === 0 ? '#fff' : (i % 3 === 1 ? color : '#ffcb3d'), gravity: 100, type: 'circle', glow: true }));
+  }
+  for (let i = 0; i < 10; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(150, 350) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 50,
+      life: rand(0.3, 0.7), size: rand(2, 5), color: '#fff', gravity: 200, type: 'spark' }));
+  }
+  for (let i = 0; i < 8; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(20, 80);
+    game.particles.push(new Particle({ x: x + rand(-10, 10), y: y + rand(-10, 10),
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 40,
+      life: rand(0.8, 1.6), size: rand(10, 18) * (radius / 40),
+      color: 'rgba(60,40,30,1)', gravity: -30, type: 'smoke' }));
+  }
+  game.particles.push(new Particle({ x, y, vx: 0, vy: 0, life: 0.4, size: radius * 0.4,
+    color, gravity: 0, shrink: true, type: 'ring' }));
+}
+
+function spawnFireballExplosion(x, y, radius, color) {
+  for (let i = 0; i < 35; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(40, 180) * (radius / 40);
+    const c = i % 4 === 0 ? '#fff' : (i % 4 === 1 ? color : (i % 4 === 2 ? '#ffaa00' : '#ff4400'));
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 60,
+      life: rand(0.5, 1.2), size: rand(6, 14) * (radius / 40),
+      color: c, gravity: 60, type: 'circle', glow: true }));
+  }
+  for (let i = 0; i < 20; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(100, 300) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 80,
+      life: rand(0.4, 0.8), size: rand(3, 7), color: '#ff6600', gravity: 150, type: 'spark' }));
+  }
+  for (let i = 0; i < 15; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(20, 60);
+    game.particles.push(new Particle({ x: x + rand(-15, 15), y: y + rand(-15, 15),
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 60,
+      life: rand(1, 2), size: rand(12, 25) * (radius / 40),
+      color: 'rgba(40,25,15,1)', gravity: -40, type: 'smoke' }));
+  }
+  game.particles.push(new Particle({ x, y, vx: 0, vy: 0, life: 0.5, size: radius * 0.5,
+    color, gravity: 0, shrink: true, type: 'ring' }));
+}
+
+function spawnFirestormExplosion(x, y, radius, color) {
+  spawnFireballExplosion(x, y, radius, color);
+  for (let i = 0; i < 25; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(80, 250) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 100,
+      life: rand(0.8, 1.5), size: rand(4, 9), color: '#ff3300', gravity: -20, type: 'circle', glow: true }));
+  }
+  for (let i = 0; i < 3; i++) {
+    game.particles.push(new Particle({ x, y, vx: 0, vy: 0, life: 0.6 + i * 0.2, size: radius * (0.4 + i * 0.2),
+      color: '#ff6600', gravity: 0, shrink: true, type: 'ring' }));
+  }
+}
+
+function spawnElectricExplosion(x, y, radius, color) {
+  for (let i = 0; i < 15; i++) {
+    game.particles.push(new Particle({ x, y, vx: rand(-20, 20), vy: rand(-20, 20),
+      life: rand(0.3, 0.6), size: rand(3, 8), color, gravity: 0, type: 'lightning' }));
+  }
+  for (let i = 0; i < 30; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(100, 400) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+      life: rand(0.2, 0.5), size: rand(2, 4), color: '#fff', gravity: 50, type: 'spark' }));
+  }
+  for (let i = 0; i < 20; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(40, 120) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+      life: rand(0.4, 0.8), size: rand(4, 8), color, gravity: 0, type: 'circle', glow: true }));
+  }
+  game.particles.push(new Particle({ x, y, vx: 0, vy: 0, life: 0.3, size: radius * 0.6,
+    color: '#fff', gravity: 0, shrink: true, type: 'ring' }));
+}
+
+function spawnFrostExplosion(x, y, radius, color) {
+  for (let i = 0; i < 25; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(50, 180) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 20,
+      life: rand(0.6, 1.2), size: rand(5, 12) * (radius / 40),
+      color: i % 2 === 0 ? '#fff' : color, gravity: 80, type: 'circle', glow: true }));
+  }
+  for (let i = 0; i < 20; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(80, 250) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 60,
+      life: rand(0.5, 1), size: rand(3, 6), color: '#aaddff', gravity: 150, type: 'spark', rotSpeed: rand(-10, 10) }));
+  }
+  for (let i = 0; i < 15; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(20, 70);
+    game.particles.push(new Particle({ x: x + rand(-10, 10), y: y + rand(-10, 10),
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 30,
+      life: rand(0.8, 1.5), size: rand(10, 20) * (radius / 40),
+      color: 'rgba(170,221,255,1)', gravity: -20, type: 'smoke' }));
+  }
+  game.particles.push(new Particle({ x, y, vx: 0, vy: 0, life: 0.5, size: radius * 0.5,
+    color: '#aaddff', gravity: 0, shrink: true, type: 'ring' }));
+}
+
+function spawnImplosionExplosion(x, y, radius, color) {
+  for (let i = 0; i < 30; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(100, 300) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+      life: rand(0.5, 0.8), size: rand(4, 10), color, gravity: 0, type: 'circle', glow: true }));
+  }
+  for (let i = 0; i < 10; i++) {
+    game.particles.push(new Particle({ x, y, vx: rand(-30, 30), vy: rand(-30, 30),
+      life: 0.5, size: rand(4, 10), color: '#aa00ff', gravity: 0, type: 'lightning' }));
+  }
+  game.particles.push(new Particle({ x, y, vx: 0, vy: 0, life: 0.8, size: radius * 0.7,
+    color: '#aa00ff', gravity: 0, shrink: true, type: 'ring' }));
+  game.particles.push(new Particle({ x, y, vx: 0, vy: 0, life: 0.6, size: radius * 0.3,
+    color: '#000', gravity: 0, shrink: true, type: 'circle' }));
+}
+
+function spawnNukeExplosion(x, y, radius, color) {
+  game.particles.push(new Particle({ x, y, vx: 0, vy: 0, life: 0.4, size: radius * 0.8,
+    color: '#fff', gravity: 0, shrink: true, type: 'circle', glow: true }));
+  for (let i = 0; i < 4; i++) {
+    game.particles.push(new Particle({ x, y, vx: 0, vy: 0, life: 0.8 + i * 0.2, size: radius * (0.3 + i * 0.2),
+      color: i % 2 === 0 ? '#fff' : '#ffaa00', gravity: 0, shrink: true, type: 'ring' }));
+  }
+  for (let i = 0; i < 50; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(50, 250) * (radius / 40);
+    const c = i % 4 === 0 ? '#fff' : (i % 4 === 1 ? '#ffaa00' : (i % 4 === 2 ? '#ff4400' : '#8c3a14'));
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 80,
+      life: rand(0.8, 1.6), size: rand(8, 18) * (radius / 40),
+      color: c, gravity: 40, type: 'circle', glow: true }));
+  }
+  for (let i = 0; i < 30; i++) {
+    game.particles.push(new Particle({ x: x + rand(-20, 20), y: y,
+      vx: rand(-30, 30), vy: rand(-200, -100),
+      life: rand(1.5, 2.5), size: rand(15, 30) * (radius / 40),
+      color: 'rgba(80,50,30,1)', gravity: -50, type: 'smoke' }));
+  }
+  for (let i = 0; i < 30; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(200, 500) * (radius / 40);
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 100,
+      life: rand(0.4, 0.9), size: rand(3, 7), color: '#fff', gravity: 200, type: 'spark' }));
+  }
+}
+
+function spawnExplosionParticles(x, y, color, count, scale = 1) {
+  for (let i = 0; i < count; i++) {
+    const ang = rand(0, Math.PI * 2), sp = rand(50, 150) * scale;
+    game.particles.push(new Particle({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+      life: rand(0.3, 0.6), size: rand(2, 5) * scale, color, gravity: 100, glow: true }));
+  }
+}
+
+function spawnDamageText(x, y, dmg) {
+  game.particles.push(new Particle({ x, y: y - 10, vx: 0, vy: -50, life: 1.2,
+    size: 22, color: '#ff3a3a', gravity: 0, shrink: false, type: 'text', text: '-' + dmg }));
+}
+
+function spawnRadiationParticle(x, y) {
+  game.particles.push(new Particle({ x, y, vx: rand(-20, 20), vy: rand(-60, -20),
+    life: 0.8, size: rand(3, 6), color: '#66ff44', gravity: -20, type: 'circle', glow: true }));
+}
+
+// ============ AI ============
+function aiThink(tank, dt) {
+  if (!tank.aiState) tank.aiState = { phase: 'aiming', timer: 0, targetAngle: null, targetPower: null };
+  const state = tank.aiState;
+  state.timer += dt;
+  if (state.phase === 'aiming') {
+    const enemy = game.players.find(p => p !== tank && p.alive);
+    if (!enemy) return;
+    const distToEnemy = Math.abs(enemy.x - tank.x);
+    let weaponIdx = 0;
+    if (distToEnemy > 400 && tank.weapons[3].currentAmmo > 0) weaponIdx = 3;
+    else if (distToEnemy < 200 && tank.weapons[2].currentAmmo > 0) weaponIdx = 2;
+    else if (tank.weapons[4].currentAmmo > 0 && enemy.hp < 60) weaponIdx = 4;
+    else if (tank.weapons[1].currentAmmo > 0) weaponIdx = 1;
+    tank.currentWeapon = weaponIdx;
+    let targetAngle, targetPower;
+    if (tank.lastShot) {
+      const ls = tank.lastShot, errX = enemy.x - ls.landingX;
+      if (Math.abs(errX) > 20) {
+        targetAngle = ls.angle + Math.sign(errX) * 4;
+        targetPower = ls.power + Math.sign(errX) * 6;
+      } else { targetAngle = ls.angle + rand(-3, 3); targetPower = ls.power + rand(-3, 3); }
+      targetAngle = clamp(targetAngle, 10, 85);
+      targetPower = clamp(targetPower, 20, 100);
+    } else {
+      const d = Math.abs(enemy.x - tank.x);
+      targetAngle = 45 + rand(-5, 5);
+      targetPower = clamp(40 + d * 0.08, 30, 90);
+    }
+    state.targetAngle = targetAngle; state.targetPower = targetPower;
+    state.phase = 'adjusting'; state.timer = 0;
+  } else if (state.phase === 'adjusting') {
+    const da = state.targetAngle - tank.angle, dp = state.targetPower - tank.power;
+    if (Math.abs(da) < 0.5 && Math.abs(dp) < 0.5) {
+      tank.angle = state.targetAngle; tank.power = state.targetPower;
+      state.phase = 'firing'; state.timer = 0;
+    } else { tank.angle += da * dt * 3; tank.power += dp * dt * 3; }
+  } else if (state.phase === 'firing') {
+    if (state.timer > 0.5) {
+      const proj = tank.fire();
+      if (proj) { game.projectiles.push(proj); game.state = 'firing'; showToast(`${tank.name} 开火！`); }
+      tank.aiState = null;
+    }
+  }
+}
+
+function recordLanding(tank, projectile) {
+  tank.lastShot = { angle: tank.angle, power: tank.power, landingX: projectile.x, landingY: projectile.y };
+}
+
+// ============ 游戏初始化 ============
+function initGame(mode) {
+  game.mode = mode; game.state = 'playing';
+  game.projectiles = []; game.particles = [];
+  game.terrain = new Terrain();
+  game.wind = rand(-WIND_MAX * 0.7, WIND_MAX * 0.7);
+  game.currentPlayer = 0; game.screenShake = 0;
+  const p1Type = game.selectedTanks.p1;
+  const p2Type = game.selectedTanks.p2;
+  const p1 = new Tank(W * 0.2, mode === 'ai' ? '玩家' : '玩家 1', p1Type, false, 1);
+  const p2 = new Tank(W * 0.8, mode === 'ai' ? 'AI 对手' : '玩家 2', p2Type, mode === 'ai', -1);
+  p1.y = game.terrain.getHeightAt(p1.x);
+  p2.y = game.terrain.getHeightAt(p2.x);
+  game.players = [p1, p2];
+  initBackground(); buildWeaponBar(); updateUI(); showTurnIndicator();
+}
+
+// ============ UI 更新 ============
+function buildWeaponBar() {
+  const bar = document.getElementById('weaponBar');
+  bar.innerHTML = '';
+  const current = game.players[game.currentPlayer];
+  if (!current) return;
+  current.weapons.forEach((w, i) => {
+    const slot = document.createElement('div');
+    slot.className = 'weapon-slot' + (i === current.currentWeapon ? ' selected' : '') + (w.currentAmmo <= 0 ? ' disabled' : '');
+    slot.innerHTML = `<div class="weapon-key">${i+1}</div><div class="weapon-ammo">${w.ammo === Infinity ? '∞' : w.currentAmmo}</div><div class="weapon-icon">${w.icon}</div><div class="weapon-name">${w.name}</div>`;
+    slot.onclick = () => {
+      if (game.state !== 'playing' || w.currentAmmo <= 0) return;
+      current.currentWeapon = i; buildWeaponBar(); updateUI();
+    };
+    bar.appendChild(slot);
+  });
+}
+
+function updateUI() {
+  const p1 = game.players[0], p2 = game.players[1];
+  if (!p1 || !p2) return;
+  document.getElementById('p1Name').textContent = `${p1.name} · ${p1.type.name}`;
+  document.getElementById('p1HpFill').style.width = (p1.hp / p1.maxHp * 100) + '%';
+  document.getElementById('p1HpText').textContent = `${p1.hp} / ${p1.maxHp}`;
+  const p1w = p1.getSelectedWeapon();
+  document.getElementById('p1Weapon').textContent = `${p1w.name} · ${p1w.ammo === Infinity ? '∞' : p1w.currentAmmo}`;
+  document.getElementById('p1Card').classList.toggle('active', game.currentPlayer === 0 && game.state === 'playing');
+  
+  document.getElementById('p2Name').textContent = `${p2.name} · ${p2.type.name}`;
+  document.getElementById('p2HpFill').style.width = (p2.hp / p2.maxHp * 100) + '%';
+  document.getElementById('p2HpText').textContent = `${p2.hp} / ${p2.maxHp}`;
+  const p2w = p2.getSelectedWeapon();
+  document.getElementById('p2Weapon').textContent = `${p2w.name} · ${p2w.ammo === Infinity ? '∞' : p2w.currentAmmo}`;
+  document.getElementById('p2Card').classList.toggle('active', game.currentPlayer === 1 && game.state === 'playing');
+  
+  const current = game.players[game.currentPlayer];
+  if (current) {
+    document.getElementById('angleVal').textContent = Math.round(current.angle) + '°';
+    document.getElementById('powerVal').textContent = Math.round(current.power);
+    document.getElementById('angleBar').style.width = (current.angle / 90 * 100) + '%';
+    document.getElementById('powerBar').style.width = (current.power / MAX_POWER * 100) + '%';
+  }
+}
+
+function showTurnIndicator() {
+  const ind = document.getElementById('turnIndicator');
+  const current = game.players[game.currentPlayer];
+  if (current) {
+    ind.textContent = `${current.name} 的回合`;
+    ind.classList.add('show');
+    setTimeout(() => ind.classList.remove('show'), 2000);
+  }
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function showResult(winner) {
+  game.state = 'gameover';
+  if (window.CYB && CYB.scores && winner) {
+    if (winner.isAI) CYB.scores.addLoss('tank-stars'); else CYB.scores.addWin('tank-stars');
+  }
+  const overlay = document.getElementById('resultOverlay');
+  const title = document.getElementById('resultTitle');
+  const sub = document.getElementById('resultSub');
+  if (winner) {
+    title.textContent = '胜利'; title.classList.remove('lose');
+    sub.textContent = `${winner.name} 的 ${winner.type.name} 击毁了敌方坦克`;
+  } else {
+    title.textContent = '平局'; title.classList.add('lose');
+    sub.textContent = '双方坦克同归于尽';
+  }
+  setTimeout(() => overlay.classList.add('show'), 800);
+}
+
+function nextTurn() {
+  game.currentPlayer = (game.currentPlayer + 1) % game.players.length;
+  const current = game.players[game.currentPlayer];
+  if (!current.alive) { nextTurn(); return; }
+  current.fuel = current.maxFuel;
+  game.wind = rand(-WIND_MAX * 0.7, WIND_MAX * 0.7);
+  game.state = 'playing';
+  if (current.getSelectedWeapon().currentAmmo <= 0) {
+    for (let i = 0; i < current.weapons.length; i++) {
+      if (current.weapons[i].currentAmmo > 0) { current.currentWeapon = i; break; }
+    }
+  }
+  buildWeaponBar(); updateUI(); showTurnIndicator();
+}
+
+// ============ 输入处理 ============
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  keys[e.code] = true;
+  if (game.state !== 'playing') return;
+  const current = game.players[game.currentPlayer];
+  if (!current || current.isAI) return;
+  if (e.code >= 'Digit1' && e.code <= 'Digit5') {
+    const idx = parseInt(e.code.slice(-1)) - 1;
+    if (current.switchWeapon(idx)) { buildWeaponBar(); updateUI(); }
+  }
+  if (e.code === 'Space') { e.preventDefault(); fireCurrent(); }
+});
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+function handleKeyboard(dt) {
+  if (game.state !== 'playing') return;
+  const current = game.players[game.currentPlayer];
+  if (!current || current.isAI) return;
+  let changed = false;
+  if (keys['KeyA']) { current.move(-1, dt); changed = true; }
+  if (keys['KeyD']) { current.move(1, dt); changed = true; }
+  if (keys['KeyW'] || keys['ArrowUp']) { current.adjustAngle(60 * dt); changed = true; }
+  if (keys['KeyS'] || keys['ArrowDown']) { current.adjustAngle(-60 * dt); changed = true; }
+  if (keys['ArrowLeft']) { current.adjustPower(-50 * dt); changed = true; }
+  if (keys['ArrowRight']) { current.adjustPower(50 * dt); changed = true; }
+  if (changed) updateUI();
+}
+
+function getEventPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.touches ? e.touches[0].clientX : e.clientX) - rect.left,
+    y: (e.touches ? e.touches[0].clientY : e.clientY) - rect.top
+  };
+}
+
+let dragStart = null;
+canvas.addEventListener('mousedown', startDrag);
+canvas.addEventListener('touchstart', startDrag, { passive: false });
+function startDrag(e) {
+  if (game.state !== 'playing') return;
+  const current = game.players[game.currentPlayer];
+  if (!current || current.isAI) return;
+  e.preventDefault();
+  dragStart = getEventPos(e);
+  game.isDragging = true;
+}
+
+canvas.addEventListener('mousemove', moveDrag);
+canvas.addEventListener('touchmove', moveDrag, { passive: false });
+function moveDrag(e) {
+  if (!game.isDragging || !dragStart) return;
+  e.preventDefault();
+  const current = game.players[game.currentPlayer];
+  if (!current) return;
+  const pos = getEventPos(e);
+  const dx = dragStart.x - pos.x, dy = dragStart.y - pos.y;
+  const power = clamp(Math.sqrt(dx*dx + dy*dy) * 0.5, 5, MAX_POWER);
+  let angle = Math.atan2(-dy, Math.abs(dx)) * 180 / Math.PI;
+  angle = clamp(angle, 5, 90);
+  current.angle = angle; current.power = power;
+  if (Math.abs(dx) > 10) current.facing = dx > 0 ? 1 : -1;
+  updateUI();
+}
+
+canvas.addEventListener('mouseup', endDrag);
+canvas.addEventListener('touchend', endDrag);
+function endDrag() {
+  if (!game.isDragging) return;
+  game.isDragging = false;
+  dragStart = null;
+}
+
+function fireCurrent() {
+  if (game.state !== 'playing') return;
+  const current = game.players[game.currentPlayer];
+  if (!current || current.isAI) return;
+  const proj = current.fire();
+  if (proj) {
+    game.projectiles.push(proj);
+    game.state = 'firing';
+    showToast(`${current.name} 开火！`);
+    buildWeaponBar(); updateUI();
+  }
+}
+
+// ============ 移动端按钮 ============
+function setupMobileButtons() {
+  const current = () => game.players[game.currentPlayer];
+  const bindHold = (id, fn) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let holding = false;
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); holding = true; }, { passive: false });
+    el.addEventListener('touchend', (e) => { e.preventDefault(); holding = false; });
+    el.addEventListener('touchcancel', () => { holding = false; });
+    el.addEventListener('mousedown', (e) => { e.preventDefault(); holding = true; });
+    el.addEventListener('mouseup', () => { holding = false; });
+    el.addEventListener('mouseleave', () => { holding = false; });
+    el._update = (dt) => { if (holding && game.state === 'playing') fn(dt); };
+  };
+  bindHold('mbtnLeft', (dt) => { const c = current(); if (c && !c.isAI) { c.move(-1, dt); updateUI(); } });
+  bindHold('mbtnRight', (dt) => { const c = current(); if (c && !c.isAI) { c.move(1, dt); updateUI(); } });
+  bindHold('mbtnUp', (dt) => { const c = current(); if (c && !c.isAI) { c.adjustAngle(60 * dt); updateUI(); } });
+  bindHold('mbtnDown', (dt) => { const c = current(); if (c && !c.isAI) { c.adjustAngle(-60 * dt); updateUI(); } });
+  const fireBtn = document.getElementById('mbtnFire');
+  if (fireBtn) fireBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); fireCurrent(); });
+}
+
+// ============ 坦克选择界面 ============
+function buildTankSelectGrids() {
+  const p1Grid = document.getElementById('p1TankGrid');
+  const p2Grid = document.getElementById('p2TankGrid');
+  p1Grid.innerHTML = ''; p2Grid.innerHTML = '';
+  
+  Object.entries(TANK_TYPES).forEach(([key, type]) => {
+    const makeCard = (playerKey) => {
+      const card = document.createElement('div');
+      card.className = 'tank-card' + (game.selectedTanks[playerKey] === key ? ' selected' : '');
+      card.innerHTML = `
+        <div class="tank-card-header">
+          <div class="tank-card-icon" style="background:${type.color}33;border:1px solid ${type.color}66;">${type.icon}</div>
+          <div class="tank-card-name">${type.name}</div>
+        </div>
+        <div class="tank-card-desc">${type.desc}</div>
+        <div class="tank-card-stats">
+          <div class="stat-item"><span class="stat-label">血量</span><span class="stat-value">${type.stats.hp}</span></div>
+          <div class="stat-item"><span class="stat-label">速度</span><span class="stat-value">${type.stats.speed}</span></div>
+          <div class="stat-item"><span class="stat-label">火力</span><span class="stat-value">${type.stats.power}</span></div>
+        </div>
+      `;
+      card.onclick = () => { game.selectedTanks[playerKey] = key; buildTankSelectGrids(); };
+      return card;
+    };
+    p1Grid.appendChild(makeCard('p1'));
+    p2Grid.appendChild(makeCard('p2'));
+  });
+}
+
+// ============ 菜单按钮绑定 ============
+document.querySelectorAll('[data-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    document.getElementById('menu').classList.add('hidden');
+    document.getElementById('resultOverlay').classList.remove('show');
+    initGame(mode);
+  });
+});
+
+document.getElementById('btnReplay').addEventListener('click', () => {
+  document.getElementById('resultOverlay').classList.remove('show');
+  initGame(game.mode);
+});
+
+document.getElementById('btnMenu').addEventListener('click', () => {
+  document.getElementById('resultOverlay').classList.remove('show');
+  document.getElementById('menu').classList.remove('hidden');
+  game.state = 'menu';
+});
+
+// ============ 初始化与主循环 ============
+resize();
+setupMobileButtons();
+initBackground();
+buildTankSelectGrids();
+
+let lastTime = performance.now();
+
+function update(dt) {
+  if (game.state === 'menu') return;
+  if (game.screenShake > 0) game.screenShake = Math.max(0, game.screenShake - dt * 50);
+  for (let t of game.players) t.update(dt);
+  handleKeyboard(dt);
+  for (let id of ['mbtnLeft', 'mbtnRight', 'mbtnUp', 'mbtnDown']) {
+    const el = document.getElementById(id);
+    if (el && el._update) el._update(dt);
+  }
+  if (game.state === 'playing') {
+    const current = game.players[game.currentPlayer];
+    if (current && current.isAI) aiThink(current, dt);
+  }
+  for (let p of game.projectiles) p.update(dt);
+  if (game.state === 'firing') {
+    const alive = game.projectiles.filter(p => p.alive);
+    if (alive.length === 0) {
+      const shooter = game.players[game.lastFiredBy];
+      if (shooter && shooter.isAI && game.projectiles.length > 0) {
+        for (let i = game.projectiles.length - 1; i >= 0; i--) {
+          if (!game.projectiles[i].alive) { recordLanding(shooter, game.projectiles[i]); break; }
+        }
+      }
+      const alivePlayers = game.players.filter(p => p.alive);
+      if (alivePlayers.length <= 1) {
+        game.projectiles = []; game.turnEndTimer = 1.5; game.state = 'ending';
+      } else {
+        game.projectiles = []; game.turnEndTimer = 0.8; game.state = 'transition';
+      }
+    }
+  }
+  if (game.state === 'transition' || game.state === 'ending') {
+    game.turnEndTimer -= dt;
+    if (game.turnEndTimer <= 0) {
+      if (game.state === 'ending') showResult(game.players.find(p => p.alive));
+      else nextTurn();
+    }
+  }
+  for (let p of game.particles) p.update(dt);
+  game.particles = game.particles.filter(p => p.life > 0);
+  for (let c of game.bgClouds) {
+    c.x += c.speed * dt;
+    if (c.x > W + 100) c.x = -100;
+  }
+  for (let s of game.bgStars) s.twinkle += dt * s.speed;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  if (game.state === 'menu') { drawMenuBackground(); return; }
+  ctx.save();
+  if (game.screenShake > 0) ctx.translate(rand(-game.screenShake, game.screenShake), rand(-game.screenShake, game.screenShake));
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0, '#1a0a05'); skyGrad.addColorStop(0.4, '#3d1a08');
+  skyGrad.addColorStop(0.7, '#6b2a10'); skyGrad.addColorStop(1, '#8c3a14');
+  ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, H);
+  for (let s of game.bgStars) {
+    const alpha = (Math.sin(s.twinkle) + 1) * 0.3 + 0.2;
+    ctx.fillStyle = `rgba(255, 220, 150, ${alpha})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+  }
+  const sunX = W * 0.85, sunY = H * 0.2;
+  const sunGrad = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 80);
+  sunGrad.addColorStop(0, 'rgba(255, 220, 100, 0.9)');
+  sunGrad.addColorStop(0.4, 'rgba(255, 140, 50, 0.5)');
+  sunGrad.addColorStop(1, 'rgba(255, 100, 30, 0)');
+  ctx.fillStyle = sunGrad; ctx.fillRect(sunX - 100, sunY - 100, 200, 200);
+  ctx.fillStyle = 'rgba(255, 230, 150, 0.9)';
+  ctx.beginPath(); ctx.arc(sunX, sunY, 28, 0, Math.PI * 2); ctx.fill();
+  for (let c of game.bgClouds) {
+    ctx.fillStyle = `rgba(255, 200, 150, ${c.alpha})`;
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, c.w/2, c.h/2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(c.x + c.w*0.3, c.y + 5, c.w/3, c.h/2.5, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  if (game.terrain) game.terrain.draw(ctx);
+  drawWindIndicator();
+  for (let t of game.players) t.draw(ctx);
+  for (let t of game.players) t.drawAimLine(ctx);
+  for (let p of game.projectiles) p.draw(ctx);
+  for (let p of game.particles) p.draw(ctx);
+  ctx.restore();
+}
+
+function drawMenuBackground() {
+  const t = performance.now() * 0.0005;
+  ctx.fillStyle = '#0d0500'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(60, 30, 15, 0.5)';
+  ctx.beginPath(); ctx.moveTo(0, H);
+  for (let i = 0; i <= W; i += 30) ctx.lineTo(i, H * 0.65 + Math.sin(i * 0.005 + t) * 30);
+  ctx.lineTo(W, H); ctx.fill();
+}
+
+function drawWindIndicator() {
+  const x = W / 2, y = 65;
+  const arrowLen = Math.abs(game.wind) * 1.5;
+  const dir = Math.sign(game.wind);
+  ctx.save(); ctx.font = '11px Russo One, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.textAlign = 'center';
+  ctx.fillText('风力', x, y - 12);
+  ctx.strokeStyle = game.wind === 0 ? 'rgba(255,255,255,0.4)' : (Math.abs(game.wind) > 30 ? '#ff3a3a' : '#ffcb3d');
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x - arrowLen/2 * dir, y); ctx.lineTo(x + arrowLen/2 * dir, y); ctx.stroke();
+  if (game.wind !== 0) {
+    ctx.beginPath();
+    const tipX = x + arrowLen/2 * dir;
+    ctx.moveTo(tipX, y); ctx.lineTo(tipX - 6 * dir, y - 4); ctx.lineTo(tipX - 6 * dir, y + 4);
+    ctx.closePath(); ctx.fillStyle = Math.abs(game.wind) > 30 ? '#ff3a3a' : '#ffcb3d'; ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText(Math.abs(Math.round(game.wind)), x, y + 16);
+  ctx.restore();
+}
+
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

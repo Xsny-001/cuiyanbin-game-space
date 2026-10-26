@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, user-scalable=0">
+        <title>中式八球 · 崔彦斌的游戏空间</title>
+    <meta name="description" content="双人同屏的中式八球：拖拽球杆击球，打进自己的球组，最后收黑八获胜。">
+    <meta name="theme-color" content="#1e3c72">
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
+            font-family: 'Microsoft YaHei', sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            width: 100vw;
+        }
+
+        .top-bar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            height: 36px;
+        }
+
+        .game-title {
+            font-size: 1em;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+        }
+
+        .top-buttons {
+            display: flex;
+            gap: 4px;
+        }
+
+        .btn-small {
+            padding: 3px 6px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.65em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-small:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .btn-gold {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #1e3c72;
+            border: none;
+        }
+
+        /* 顶部玩家信息 - 上下两行 */
+        .players-bar {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 3px 8px;
+            background: rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(5px);
+            position: fixed;
+            top: 36px;
+            left: 0;
+            z-index: 99;
+            gap: 3px;
+        }
+
+        .player-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1.5px solid transparent;
+        }
+
+        .player-row.active {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.15);
+        }
+
+        .player-name-top {
+            font-size: 0.7em;
+            color: rgba(255, 255, 255, 0.9);
+            min-width: 42px;
+            font-weight: bold;
+        }
+
+        .player-balls-top {
+            display: flex;
+            gap: 2px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .mini-ball-top {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            font-size: 0.55em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .mini-ball-top.stripe {
+            background: radial-gradient(circle, white 30%, var(--ball-color) 35%);
+        }
+
+        .mini-ball-top.solid {
+            background: var(--ball-color);
+        }
+
+        .mini-ball-top.eight {
+            background: #2c3e50;
+        }
+
+        .main-area {
+            display: flex;
+            width: 100%;
+            height: calc(100vh - 108px);
+            margin-top: 108px;
+            position: relative;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            padding: 0 2px;
+        }
+
+        .side-panel {
+            width: 24px;
+            min-width: 24px;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 3px 1px;
+            gap: 2px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            max-width: calc(100vw - 60px);
+        }
+
+        .mode-btn-v, .cue-btn-v {
+            width: 100%;
+            padding: 2px 0;
+            margin: 1px 0;
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            background: transparent;
+            color: #ffd700;
+            border-radius: 3px;
+            font-size: 0.45em;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1px;
+            min-height: 40px;
+        }
+
+        .mode-btn-v.active, .cue-btn-v.selected {
+            background: #ffd700;
+            color: #1e3c72;
+            font-weight: bold;
+            border-color: #ffd700;
+        }
+
+        .cue-btn-v {
+            border-color: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+
+        .cue-btn-v.selected {
+            border-color: #ffed4e;
+            background: rgba(255, 215, 0, 0.2);
+            color: white;
+        }
+
+        .power-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 2px;
+        }
+
+        .power-label {
+            font-size: 0.4em;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 2px;
+            writing-mode: vertical-rl;
+        }
+
+        .power-vertical {
+            width: 100%;
+            height: 60px;
+            position: relative;
+            background: linear-gradient(to top, #00ff00 0%, #ffff00 50%, #ff0000 100%);
+            border-radius: 6px;
+            margin: 1px 0;
+            touch-action: none;
+        }
+
+        .power-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            transition: height 0.1s;
+        }
+
+        .power-handle {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .power-value {
+            font-size: 0.5em;
+            font-weight: bold;
+            color: #ffd700;
+            margin-top: 2px;
+        }
+
+        .confirm-section {
+            width: 100%;
+            margin-top: 2px;
+            display: none;
+        }
+
+        .confirm-section.show {
+            display: block;
+        }
+
+        .confirm-btn {
+            width: 100%;
+            padding: 3px 0;
+            border: 1px solid #ffd700;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #1e3c72;
+            border-radius: 4px;
+            font-size: 0.5em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+            animation: pulseBtn 1.5s infinite;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            min-height: 50px;
+        }
+
+        .confirm-btn:active {
+            transform: scale(0.95);
+        }
+
+        @keyframes pulseBtn {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); }
+            50% { box-shadow: 0 0 0 3px rgba(255, 215, 0, 0); }
+        }
+
+        .freeball-hint-text {
+            font-size: 0.4em;
+            color: #ffd700;
+            text-align: center;
+            margin-bottom: 2px;
+            line-height: 1.2;
+            writing-mode: vertical-rl;
+        }
+
+        #gameCanvas {
+            border: 4px solid #8b4513;
+            border-radius: 8px;
+            background: #0f5132;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 4px 15px rgba(0,0,0,0.3);
+            cursor: crosshair;
+            max-width: 100%;
+            max-height: 100%;
+            touch-action: none;
+        }
+
+        .foul-flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0.2);
+            pointer-events: none;
+            z-index: 40;
+            animation: foulFlash 0.5s ease-out;
+            display: none;
+        }
+
+        @keyframes foulFlash {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            border: 2px solid #ffd700;
+            border-radius: 15px;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            font-size: 0.85em;
+            line-height: 1.6;
+        }
+
+        .modal-close {
+            display: block;
+            margin: 15px auto 0;
+            padding: 8px 20px;
+            background: #ffd700;
+            color: #1e3c72;
+            border: none;
+            border-radius: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        @media (orientation: landscape) and (max-height: 500px) {
+            .rotate-hint {
+                display: flex !important;
+            }
+            .main-area {
+                display: none;
+            }
+            .top-bar, .players-bar {
+                display: none;
+            }
+        }
+
+        .rotate-hint {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1e3c72;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 300;
+            font-size: 1.2em;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .rotate-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            animation: rotatePhone 2s infinite;
+        }
+
+        @keyframes rotatePhone {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+        }
+    
+  /* ---------- 站点导航：返回游戏空间（图标按钮，悬停展开文案） ---------- */
+  #back-link{position:fixed;top:calc(10px + env(safe-area-inset-top));
+    left:calc(10px + env(safe-area-inset-left));z-index:9999;
+    display:inline-flex;align-items:center;justify-content:center;gap:5px;
+    height:32px;width:32px;padding:0;opacity:.82;
+    color:#dfe7ff;background:rgba(8,11,26,.72);border:2px solid rgba(120,140,220,.45);border-radius:6px;
+    font:600 12px/1 ui-monospace,Menlo,Consolas,monospace;text-decoration:none;
+    transition:width .16s ease,opacity .16s ease,background .16s ease}
+  #back-link:hover,#back-link:focus-visible{width:96px;opacity:1;background:rgba(22,30,64,.94)}
+  #back-link svg{flex:0 0 auto}
+  #back-link em{display:none;font-style:normal;white-space:nowrap}
+  #back-link:hover em,#back-link:focus-visible em{display:block}
+
+  #back-link{top:auto;bottom:14px}
+</style>
+</head>
+<body>
+  <a id="back-link" href="../../index.html" title="返回游戏空间" aria-label="返回游戏空间"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg><em>游戏空间</em></a>
+
+    <div class="rotate-hint">
+        <div class="rotate-icon">📱</div>
+        <div>请竖屏游玩<br>获得最佳体验</div>
+    </div>
+
+    <div class="top-bar">
+        <div class="game-title">🎱 中八简化版</div>
+        <div class="top-buttons">
+            <button class="btn-small btn-gold" id="newGameBtn">新局</button>
+            <button class="btn-small" id="resetBtn">重置</button>
+            <button class="btn-small" id="rulesBtn">规则</button>
+        </div>
+    </div>
+
+    <!-- 顶部玩家信息 - 上下两行 -->
+    <div class="players-bar">
+        <div class="player-row active" id="playerRow1">
+            <div class="player-name-top">玩家1</div>
+            <div class="player-balls-top" id="ballsTop1">
+                <span style="font-size:0.6em;color:rgba(255,255,255,0.5);">待确定</span>
+            </div>
+        </div>
+        
+        <div class="player-row" id="playerRow2">
+            <div class="player-name-top" id="nameTop2">玩家2</div>
+            <div class="player-balls-top" id="ballsTop2">
+                <span style="font-size:0.6em;color:rgba(255,255,255,0.5);">待确定</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-area">
+        <!-- 左侧栏：模式 -->
+        <div class="side-panel">
+            <div class="mode-label" style="font-size:0.4em;color:rgba(255,255,255,0.6);writing-mode:vertical-rl;">模式</div>
+            <button class="mode-btn-v active" data-mode="single">单人</button>
+            <button class="mode-btn-v" data-mode="double">双人</button>
+            <button class="mode-btn-v" data-mode="ai">人机</button>
+        </div>
+
+        <!-- 中间球桌 -->
+        <div class="canvas-area">
+            <div class="foul-flash" id="foulFlash"></div>
+            <canvas id="gameCanvas" width="400" height="700"></canvas>
+        </div>
+
+        <!-- 右侧栏：球杆力度 -->
+        <div class="side-panel">
+            <div class="mode-label" style="font-size:0.4em;color:rgba(255,255,255,0.6);writing-mode:vertical-rl;">球杆</div>
+            <button class="cue-btn-v selected" data-cue="1">标准</button>
+            <button class="cue-btn-v" data-cue="2">精准</button>
+            
+            <div class="power-section">
+                <div class="power-label">力度</div>
+                <div class="power-vertical" id="powerContainer">
+                    <div class="power-fill" id="powerFill"></div>
+                    <div class="power-handle" id="powerHandle"></div>
+                </div>
+                <div class="power-value" id="powerValue">50</div>
+            </div>
+
+            <div class="confirm-section" id="confirmSection">
+                <div class="freeball-hint-text">拖动白球调整位置</div>
+                <button class="confirm-btn" id="confirmBtn">确认摆放</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="rulesModal">
+        <div class="modal-content">
+            <h3 style="color:#ffd700; text-align:center; margin-bottom:15px;">🎱 中八简化版规则</h3>
+            <p><strong>摆球：</strong>标准三角形，尖朝下对着白球，8号球居中</p>
+            <p><strong>操作：</strong>触摸白球并拖动瞄准，松开手指击球</p>
+            <p><strong>规则：</strong></p>
+            <ul style="margin-left:20px; margin-top:5px;">
+                <li>1-7号为全色球，9-15号为花色球，8号为黑球</li>
+                <li>开球后第一颗进袋球决定双方球组</li>
+                <li><span style="color:#ff6b6b">犯规情况（对方自由球）：</span>
+                    <ul style="margin-left:15px; margin-top:3px;">
+                        <li>白球进袋</li>
+                        <li>先碰对方球组（球局确定后）</li>
+                        <li>先碰8号球（球局未确定时）</li>
+                        <li>打进对方球组（球局确定后）</li>
+                        <li>打进8号球（非获胜时）</li>
+                    </ul>
+                </li>
+                <li>每进一球得10分</li>
+                <li>未进球或犯规则换对手</li>
+            </ul>
+            <p style="margin-top:10px;"><strong>自由球：</strong>拖动白球到满意位置，点击确认后击球</p>
+            <p style="margin-top:10px;"><strong>模式：</strong>单人/双人/人机</p>
+            <p><strong>球杆：</strong>标准(平衡) / 精准(+20%力量)</p>
+            <button class="modal-close" onclick="document.getElementById('rulesModal').style.display='none'">知道了</button>
+        </div>
+    </div>
+
+    <script>
+        class BilliardGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.powerValue = document.getElementById('powerValue');
+                this.powerFill = document.getElementById('powerFill');
+                this.powerHandle = document.getElementById('powerHandle');
+                this.powerContainer = document.getElementById('powerContainer');
+                this.foulFlash = document.getElementById('foulFlash');
+                this.confirmSection = document.getElementById('confirmSection');
+                this.confirmBtn = document.getElementById('confirmBtn');
+                
+                this.gameMode = 'single';
+                this.currentPlayer = 1;
+                this.selectedCue = 1;
+                this.gameStarted = false;
+                this.gameEnded = false;
+                
+                this.balls = [];
+                this.cueBall = null;
+                this.isAiming = false;
+                this.isFreeBall = false;
+                this.freeBallPlaced = false;
+                this.isDraggingFreeBall = false;
+                this.aimStart = { x: 0, y: 0 };
+                this.aimEnd = { x: 0, y: 0 };
+                
+                this.scores = { player1: 0, player2: 0 };
+                this.foulCommitted = false;
+                this.ballsPottedThisTurn = 0;
+                this.firstHitBall = null;
+                this.pottedBallsThisTurn = [];
+                
+                this.playerGroups = { player1: null, player2: null };
+                this.groupAssigned = false;
+                
+                this.power = 50;
+                this.isTouch = false;
+                this.isDraggingPower = false;
+                
+                this.initGame();
+                this.setupEventListeners();
+                this.setupCanvasScaling();
+                this.setupPowerControl();
+                this.gameLoop();
+            }
+
+            initGame() {
+                this.createBalls();
+                this.updateUI();
+            }
+
+            setupCanvasScaling() {
+                const resizeCanvas = () => {
+                    const area = this.canvas.parentElement;
+                    const maxW = area.clientWidth - 12;
+                    const maxH = area.clientHeight - 12;
+                    
+                    const targetRatio = 400 / 700;
+                    const areaRatio = maxW / maxH;
+                    
+                    let displayW, displayH;
+                    if (areaRatio > targetRatio) {
+                        displayH = maxH;
+                        displayW = displayH * targetRatio;
+                    } else {
+                        displayW = maxW;
+                        displayH = displayW / targetRatio;
+                    }
+                    
+                    this.canvas.style.width = displayW + 'px';
+                    this.canvas.style.height = displayH + 'px';
+                    this.canvasRect = this.canvas.getBoundingClientRect();
+                };
+                
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+                window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
+            }
+
+            createBalls() {
+                this.balls = [];
+                const W = 400, H = 700;
+                
+                const breakLineY = H - 175;
+                this.cueBall = {
+                    x: W / 2,
+                    y: breakLineY,
+                    vx: 0, vy: 0,
+                    radius: 12,
+                    color: 'white',
+                    type: 'cue',
+                    mass: 1
+                };
+                this.balls.push(this.cueBall);
+                
+                const startY = 175;
+                const startX = W / 2;
+                const spacing = 26;
+                
+                const rows = [5, 4, 3, 2, 1];
+                
+                const layout = [
+                    { r: 0, c: 0, n: 13 }, { r: 0, c: 1, n: 6 }, { r: 0, c: 2, n: 14 }, { r: 0, c: 3, n: 7 }, { r: 0, c: 4, n: 15 },
+                    { r: 1, c: 0, n: 4 }, { r: 1, c: 1, n: 11 }, { r: 1, c: 2, n: 5 }, { r: 1, c: 3, n: 12 },
+                    { r: 2, c: 0, n: 3 }, { r: 2, c: 1, n: 8 }, { r: 2, c: 2, n: 10 },
+                    { r: 3, c: 0, n: 2 }, { r: 3, c: 1, n: 9 },
+                    { r: 4, c: 0, n: 1 },
+                ];
+                
+                const ballColors = {
+                    1: '#e74c3c', 2: '#3498db', 3: '#f39c12', 4: '#9b59b6',
+                    5: '#e67e22', 6: '#2ecc71', 7: '#c0392b', 8: '#2c3e50',
+                    9: '#e74c3c', 10: '#3498db', 11: '#f39c12', 12: '#9b59b6',
+                    13: '#e67e22', 14: '#2ecc71', 15: '#c0392b',
+                };
+                
+                layout.forEach(item => {
+                    const row = item.r;
+                    const col = item.c;
+                    const num = item.n;
+                    
+                    const y = startY + row * spacing * 0.866;
+                    const ballsInRow = rows[row];
+                    const rowWidth = (ballsInRow - 1) * spacing;
+                    const x = startX - rowWidth / 2 + col * spacing;
+                    
+                    const isStripe = num >= 9 && num <= 15;
+                    const isEight = num === 8;
+                    
+                    this.balls.push({
+                        x, y,
+                        vx: 0, vy: 0,
+                        radius: 12,
+                        color: ballColors[num],
+                        type: 'colored',
+                        mass: 1,
+                        potted: false,
+                        number: num,
+                        isStripe: isStripe,
+                        isSolid: !isStripe && !isEight,
+                        isEight: isEight
+                    });
+                });
+            }
+
+            getCanvasCoordinates(clientX, clientY) {
+                this.canvasRect = this.canvas.getBoundingClientRect();
+                const scaleX = 400 / this.canvasRect.width;
+                const scaleY = 700 / this.canvasRect.height;
+                return {
+                    x: (clientX - this.canvasRect.left) * scaleX,
+                    y: (clientY - this.canvasRect.top) * scaleY
+                };
+            }
+
+            setupPowerControl() {
+                const updatePowerDisplay = () => {
+                    const pct = (this.power / 180) * 100;
+                    this.powerFill.style.height = pct + '%';
+                    this.powerHandle.style.bottom = 'calc(' + pct + '% - 8px)';
+                    this.powerValue.textContent = Math.round(this.power);
+                };
+                
+                const handlePowerStart = (clientY) => {
+                    const rect = this.powerContainer.getBoundingClientRect();
+                    if (clientY >= rect.top && clientY <= rect.bottom) {
+                        this.isDraggingPower = true;
+                        this.updatePowerFromY(clientY, rect);
+                    }
+                };
+                
+                const handlePowerMove = (clientY) => {
+                    if (!this.isDraggingPower) return;
+                    const rect = this.powerContainer.getBoundingClientRect();
+                    this.updatePowerFromY(clientY, rect);
+                };
+                
+                const handlePowerEnd = () => {
+                    this.isDraggingPower = false;
+                };
+                
+                this.updatePowerFromY = (clientY, rect) => {
+                    const relativeY = rect.bottom - clientY;
+                    const pct = Math.max(0, Math.min(1, relativeY / rect.height));
+                    this.power = pct * 180;
+                    updatePowerDisplay();
+                };
+                
+                this.powerContainer.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    handlePowerStart(e.clientY);
+                });
+                document.addEventListener('mousemove', (e) => handlePowerMove(e.clientY));
+                document.addEventListener('mouseup', handlePowerEnd);
+                
+                this.powerContainer.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    handlePowerStart(e.touches[0].clientY);
+                }, { passive: false });
+                document.addEventListener('touchmove', (e) => {
+                    if (this.isDraggingPower) {
+                        e.preventDefault();
+                        handlePowerMove(e.touches[0].clientY);
+                    }
+                }, { passive: false });
+                document.addEventListener('touchend', handlePowerEnd);
+                
+                updatePowerDisplay();
+            }
+
+            setupEventListeners() {
+                this.canvas.addEventListener('mousedown', (e) => this.handleCanvasInput(e.clientX, e.clientY, 'start'));
+                this.canvas.addEventListener('mousemove', (e) => this.handleCanvasInput(e.clientX, e.clientY, 'move'));
+                this.canvas.addEventListener('mouseup', (e) => this.handleCanvasInput(e.clientX, e.clientY, 'end'));
+                this.canvas.addEventListener('mouseleave', () => this.handleCanvasInput(0, 0, 'end'));
+                
+                this.canvas.addEventListener('touchstart', (e) => {
+                    if (this.isDraggingPower) return;
+                    e.preventDefault();
+                    this.isTouch = true;
+                    this.handleCanvasInput(e.touches[0].clientX, e.touches[0].clientY, 'start');
+                }, { passive: false });
+                
+                this.canvas.addEventListener('touchmove', (e) => {
+                    if (this.isDraggingPower) return;
+                    e.preventDefault();
+                    this.handleCanvasInput(e.touches[0].clientX, e.touches[0].clientY, 'move');
+                }, { passive: false });
+                
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.handleCanvasInput(0, 0, 'end');
+                }, { passive: false });
+                
+                this.confirmBtn.addEventListener('click', () => {
+                    if (this.isFreeBall && !this.freeBallPlaced) {
+                        this.confirmFreeBall();
+                    }
+                });
+                
+                document.getElementById('newGameBtn').addEventListener('click', () => this.newGame());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+                document.getElementById('rulesBtn').addEventListener('click', () => {
+                    document.getElementById('rulesModal').style.display = 'flex';
+                });
+                
+                document.querySelectorAll('.mode-btn-v').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.mode-btn-v').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.gameMode = e.target.dataset.mode;
+                        this.updatePlayerNames();
+                    });
+                });
+                
+                document.querySelectorAll('.cue-btn-v').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.cue-btn-v').forEach(b => b.classList.remove('selected'));
+                        e.target.classList.add('selected');
+                        this.selectedCue = parseInt(e.target.dataset.cue);
+                    });
+                });
+            }
+
+            handleCanvasInput(clientX, clientY, type) {
+                if (type === 'start') {
+                    if (this.isFreeBall && !this.freeBallPlaced) {
+                        this.handleFreeBallStart(clientX, clientY);
+                        return;
+                    }
+                    this.handleAimStart(clientX, clientY);
+                } else if (type === 'move') {
+                    if (this.isFreeBall && !this.freeBallPlaced && this.isDraggingFreeBall) {
+                        this.handleFreeBallMove(clientX, clientY);
+                        return;
+                    }
+                    this.handleAimMove(clientX, clientY);
+                } else if (type === 'end') {
+                    if (this.isFreeBall && !this.freeBallPlaced && this.isDraggingFreeBall) {
+                        this.handleFreeBallEnd();
+                        return;
+                    }
+                    this.handleAimEnd();
+                }
+            }
+
+            handleFreeBallStart(clientX, clientY) {
+                if (this.gameEnded) return;
+                const coords = this.getCanvasCoordinates(clientX, clientY);
+                const dx = coords.x - this.cueBall.x;
+                const dy = coords.y - this.cueBall.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance <= this.cueBall.radius + 30) {
+                    this.isDraggingFreeBall = true;
+                }
+            }
+
+            handleFreeBallMove(clientX, clientY) {
+                if (!this.isDraggingFreeBall) return;
+                const coords = this.getCanvasCoordinates(clientX, clientY);
+                const W = 400, H = 700;
+                const m = this.cueBall.radius + 5;
+                
+                let nx = Math.max(m, Math.min(W - m, coords.x));
+                let ny = Math.max(m, Math.min(H - m, coords.y));
+                
+                let canPlace = true;
+                for (let b of this.balls) {
+                    if (b === this.cueBall || b.potted) continue;
+                    const dx = nx - b.x, dy = ny - b.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < this.cueBall.radius + b.radius + 2) {
+                        canPlace = false;
+                        break;
+                    }
+                }
+                
+                if (canPlace) {
+                    this.cueBall.x = nx;
+                    this.cueBall.y = ny;
+                }
+            }
+
+            handleFreeBallEnd() {
+                if (!this.isDraggingFreeBall) return;
+                this.isDraggingFreeBall = false;
+            }
+
+            confirmFreeBall() {
+                this.freeBallPlaced = true;
+                this.confirmSection.classList.remove('show');
+            }
+
+            showConfirmSection() {
+                this.confirmSection.classList.add('show');
+            }
+
+            hideConfirmSection() {
+                this.confirmSection.classList.remove('show');
+            }
+
+            handleAimStart(clientX, clientY) {
+                if (this.gameEnded || this.isBallMoving()) return;
+                
+                const coords = this.getCanvasCoordinates(clientX, clientY);
+                const dx = coords.x - this.cueBall.x;
+                const dy = coords.y - this.cueBall.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance <= this.cueBall.radius + 40) {
+                    this.isAiming = true;
+                    this.aimStart = { x: this.cueBall.x, y: this.cueBall.y };
+                    this.aimEnd = { x: coords.x, y: coords.y };
+                }
+            }
+
+            handleAimMove(clientX, clientY) {
+                if (!this.isAiming) return;
+                const coords = this.getCanvasCoordinates(clientX, clientY);
+                this.aimEnd = { x: coords.x, y: coords.y };
+            }
+
+            handleAimEnd() {
+                if (!this.isAiming) return;
+                this.isAiming = false;
+                this.shoot();
+                this.isTouch = false;
+            }
+
+            shoot() {
+                const dx = this.aimEnd.x - this.aimStart.x;
+                const dy = this.aimEnd.y - this.aimStart.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 5) {
+                    const power = this.power / 100;
+                    const maxSpeed = 22;
+                    const speed = Math.min(distance * 0.12 * power, maxSpeed);
+                    const cueMultiplier = this.selectedCue === 1 ? 1.0 : 1.2;
+                    
+                    this.cueBall.vx = -(dx / distance) * speed * cueMultiplier;
+                    this.cueBall.vy = -(dy / distance) * speed * cueMultiplier;
+                    
+                    this.gameStarted = true;
+                    this.ballsPottedThisTurn = 0;
+                    this.pottedBallsThisTurn = [];
+                    this.foulCommitted = false;
+                    this.firstHitBall = null;
+                    
+                    if (this.isFreeBall && this.freeBallPlaced) {
+                        this.isFreeBall = false;
+                        this.freeBallPlaced = false;
+                    }
+                }
+            }
+
+            updatePhysics() {
+                const friction = 0.985;
+                const minSpeed = 0.15;
+                
+                this.balls.forEach(ball => {
+                    if (ball.potted) return;
+                    ball.x += ball.vx;
+                    ball.y += ball.vy;
+                    ball.vx *= friction;
+                    ball.vy *= friction;
+                    
+                    if (Math.abs(ball.vx) < minSpeed && Math.abs(ball.vy) < minSpeed) {
+                        ball.vx = 0;
+                        ball.vy = 0;
+                    }
+                });
+                
+                this.checkBoundaryCollisions();
+                this.checkBallCollisions();
+                this.checkPotting();
+            }
+
+            checkBoundaryCollisions() {
+                const W = 400, H = 700;
+                this.balls.forEach(ball => {
+                    if (ball.potted) return;
+                    const m = ball.radius;
+                    
+                    if (ball.x < m) { ball.x = m; ball.vx = -ball.vx * 0.8; }
+                    if (ball.x > W - m) { ball.x = W - m; ball.vx = -ball.vx * 0.8; }
+                    if (ball.y < m) { ball.y = m; ball.vy = -ball.vy * 0.8; }
+                    if (ball.y > H - m) { ball.y = H - m; ball.vy = -ball.vy * 0.8; }
+                });
+            }
+
+            checkBallCollisions() {
+                for (let i = 0; i < this.balls.length; i++) {
+                    for (let j = i + 1; j < this.balls.length; j++) {
+                        const b1 = this.balls[i], b2 = this.balls[j];
+                        if (b1.potted || b2.potted) continue;
+                        
+                        const dx = b2.x - b1.x, dy = b2.y - b1.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < b1.radius + b2.radius) {
+                            const nx = dx / dist, ny = dy / dist;
+                            const dvx = b2.vx - b1.vx, dvy = b2.vy - b1.vy;
+                            const dvn = dvx * nx + dvy * ny;
+                            if (dvn > 0) continue;
+                            
+                            const impulse = 2 * dvn / (b1.mass + b2.mass);
+                            b1.vx += impulse * b2.mass * nx;
+                            b1.vy += impulse * b2.mass * ny;
+                            b2.vx -= impulse * b1.mass * nx;
+                            b2.vy -= impulse * b1.mass * ny;
+                            
+                            const overlap = b1.radius + b2.radius - dist;
+                            const sx = nx * overlap * 0.5, sy = ny * overlap * 0.5;
+                            b1.x -= sx; b1.y -= sy;
+                            b2.x += sx; b2.y += sy;
+                            
+                            if (b1.type === 'cue' && b2.type === 'colored' && !this.firstHitBall) {
+                                this.firstHitBall = b2;
+                            } else if (b2.type === 'cue' && b1.type === 'colored' && !this.firstHitBall) {
+                                this.firstHitBall = b1;
+                            }
+                        }
+                    }
+                }
+            }
+
+            assignGroup(ball) {
+                if (this.groupAssigned || ball.isEight) return;
+                
+                const group = ball.isStripe ? 'stripe' : 'solid';
+                const otherGroup = ball.isStripe ? 'solid' : 'stripe';
+                
+                this.playerGroups['player' + this.currentPlayer] = group;
+                this.playerGroups['player' + (this.currentPlayer === 1 ? 2 : 1)] = otherGroup;
+                
+                this.groupAssigned = true;
+            }
+
+            checkIllegalFirstHit() {
+                if (!this.firstHitBall) return false;
+                
+                if (!this.groupAssigned && this.firstHitBall.isEight) {
+                    return true;
+                }
+                
+                if (this.groupAssigned) {
+                    const currentGroup = this.playerGroups['player' + this.currentPlayer];
+                    if (currentGroup === 'solid' && this.firstHitBall.isStripe) return true;
+                    if (currentGroup === 'stripe' && this.firstHitBall.isSolid) return true;
+                }
+                
+                return false;
+            }
+
+            checkIllegalPottedBall(ball) {
+                if (!this.groupAssigned) {
+                    if (ball.isEight) return true;
+                    return false;
+                }
+                
+                const currentGroup = this.playerGroups['player' + this.currentPlayer];
+                
+                if (currentGroup === 'solid' && ball.isStripe) return true;
+                if (currentGroup === 'stripe' && ball.isSolid) return true;
+                
+                if (ball.isEight) {
+                    const myBalls = this.balls.filter(b => {
+                        if (b.type !== 'colored' || b.potted || b === ball) return false;
+                        return currentGroup === 'solid' ? b.isSolid : b.isStripe;
+                    });
+                    if (myBalls.length > 0) return true;
+                }
+                
+                return false;
+            }
+
+            triggerFoul(reason) {
+                this.foulCommitted = true;
+                
+                this.foulFlash.style.display = 'block';
+                setTimeout(() => {
+                    this.foulFlash.style.display = 'none';
+                }, 500);
+                
+                this.isFreeBall = true;
+                this.freeBallPlaced = false;
+                this.showConfirmSection();
+                
+                const W = 400, H = 700;
+                this.cueBall.x = W / 2;
+                this.cueBall.y = H / 2;
+                this.cueBall.vx = 0;
+                this.cueBall.vy = 0;
+            }
+
+            checkPotting() {
+                const W = 400, H = 700;
+                const pockets = [
+                    { x: 20, y: 20 },
+                    { x: W-20, y: 20 },
+                    { x: 15, y: H/2 },
+                    { x: W-15, y: H/2 },
+                    { x: 20, y: H-20 },
+                    { x: W-20, y: H-20 }
+                ];
+                
+                this.balls.forEach(ball => {
+                    if (ball.potted || ball.type === 'cue') return;
+                    
+                    pockets.forEach(p => {
+                        const dx = ball.x - p.x, dy = ball.y - p.y;
+                        if (Math.sqrt(dx*dx + dy*dy) < 22) {
+                            ball.potted = true;
+                            this.ballsPottedThisTurn++;
+                            this.pottedBallsThisTurn.push(ball);
+                            
+                            if (this.checkIllegalPottedBall(ball)) {
+                                this.triggerFoul('非法进球');
+                            } else {
+                                this.scores[this.currentPlayer === 1 ? 'player1' : 'player2'] += 10;
+                            }
+                            
+                            if (!this.groupAssigned) {
+                                this.assignGroup(ball);
+                            }
+                        }
+                    });
+                });
+                
+                pockets.forEach(p => {
+                    const dx = this.cueBall.x - p.x, dy = this.cueBall.y - p.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 22) {
+                        this.triggerFoul('白球进袋');
+                    }
+                });
+            }
+
+            isBallMoving() {
+                return this.balls.some(b => !b.potted && (Math.abs(b.vx) > 0.15 || Math.abs(b.vy) > 0.15));
+            }
+
+            switchPlayer() {
+                if (!this.foulCommitted && this.gameStarted && this.checkIllegalFirstHit()) {
+                    this.triggerFoul('非法目标球');
+                }
+                
+                if (this.isFreeBall && !this.freeBallPlaced) {
+                    return;
+                }
+                
+                if (this.ballsPottedThisTurn === 0 || this.foulCommitted) {
+                    this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+                    this.updatePlayerIndicator();
+                }
+                
+                if (this.gameMode === 'ai' && this.currentPlayer === 2 && !this.gameEnded) {
+                    setTimeout(() => this.aiTurn(), 800);
+                }
+            }
+
+            aiTurn() {
+                if (this.gameEnded) return;
+                const targets = this.balls.filter(b => !b.potted && b.type === 'colored');
+                if (targets.length === 0) return;
+                
+                let closest = targets[0];
+                let minD = this.getDist(this.cueBall, closest);
+                targets.forEach(b => {
+                    const d = this.getDist(this.cueBall, b);
+                    if (d < minD) { minD = d; closest = b; }
+                });
+                
+                const dx = closest.x - this.cueBall.x;
+                const dy = closest.y - this.cueBall.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const angle = (Math.random() - 0.5) * 0.3;
+                const c = Math.cos(angle), s = Math.sin(angle);
+                
+                const tx = this.cueBall.x - (dx/dist)*60*c + (dy/dist)*60*s;
+                const ty = this.cueBall.y - (dy/dist)*60*c - (dx/dist)*60*s;
+                
+                this.power = Math.random() * 80 + 40;
+                this.updatePowerDisplay();
+                
+                this.aimStart = { x: this.cueBall.x, y: this.cueBall.y };
+                this.aimEnd = { x: tx, y: ty };
+                this.shoot();
+            }
+
+            updatePowerDisplay() {
+                const pct = (this.power / 180) * 100;
+                this.powerFill.style.height = pct + '%';
+                this.powerHandle.style.bottom = 'calc(' + pct + '% - 8px)';
+                this.powerValue.textContent = Math.round(this.power);
+            }
+
+            getDist(b1, b2) {
+                const dx = b2.x - b1.x, dy = b2.y - b1.y;
+                return Math.sqrt(dx*dx + dy*dy);
+            }
+
+            updateTopBallsDisplay() {
+                for (let p = 1; p <= 2; p++) {
+                    const group = this.playerGroups['player' + p];
+                    const container = document.getElementById(`ballsTop${p}`);
+                    
+                    if (!group) {
+                        container.innerHTML = '<span style="font-size:0.6em;color:rgba(255,255,255,0.5);">待确定</span>';
+                        continue;
+                    }
+                    
+                    const remaining = this.balls.filter(b => {
+                        if (b.type !== 'colored' || b.potted) return false;
+                        if (b.isEight) return false;
+                        return group === 'solid' ? b.isSolid : b.isStripe;
+                    }).sort((a, b) => a.number - b.number);
+                    
+                    container.innerHTML = '';
+                    remaining.forEach(ball => {
+                        const div = document.createElement('div');
+                        div.className = 'mini-ball-top';
+                        if (ball.isStripe) {
+                            div.classList.add('stripe');
+                            div.style.setProperty('--ball-color', ball.color);
+                        } else if (ball.isEight) {
+                            div.classList.add('eight');
+                        } else {
+                            div.classList.add('solid');
+                            div.style.setProperty('--ball-color', ball.color);
+                        }
+                        div.textContent = ball.number;
+                        container.appendChild(div);
+                    });
+                }
+            }
+
+            render() {
+                const W = 400, H = 700;
+                this.ctx.clearRect(0, 0, W, H);
+                
+                this.ctx.fillStyle = '#0f5132';
+                this.ctx.fillRect(0, 0, W, H);
+                
+                this.ctx.strokeStyle = '#8b4513';
+                this.ctx.lineWidth = 6;
+                this.ctx.strokeRect(3, 3, W-6, H-6);
+                
+                const spotY = 175;
+                this.ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                this.ctx.beginPath();
+                this.ctx.arc(W/2, spotY, 4, 0, Math.PI*2);
+                this.ctx.fill();
+                
+                const breakLineY = H - 175;
+                this.ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                this.ctx.lineWidth = 1.5;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, breakLineY);
+                this.ctx.lineTo(W, breakLineY);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+                
+                this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(W/2, 0); this.ctx.lineTo(W/2, H);
+                this.ctx.stroke();
+                
+                const pockets = [
+                    { x: 20, y: 20 },
+                    { x: W-20, y: 20 },
+                    { x: 15, y: H/2 },
+                    { x: W-15, y: H/2 },
+                    { x: 20, y: H-20 },
+                    { x: W-20, y: H-20 }
+                ];
+                this.ctx.fillStyle = '#000';
+                pockets.forEach(p => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, 18, 0, Math.PI*2);
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#654321';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                });
+                
+                this.balls.forEach(ball => {
+                    if (ball.potted) return;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2);
+                    this.ctx.fillStyle = ball.color;
+                    this.ctx.fill();
+                    
+                    if (ball.isStripe) {
+                        this.ctx.fillStyle = 'white';
+                        this.ctx.beginPath();
+                        this.ctx.arc(ball.x, ball.y, ball.radius * 0.6, 0, Math.PI*2);
+                        this.ctx.fill();
+                        this.ctx.fillStyle = ball.color;
+                        this.ctx.beginPath();
+                        this.ctx.arc(ball.x, ball.y, ball.radius * 0.35, 0, Math.PI*2);
+                        this.ctx.fill();
+                    }
+                    
+                    if (ball.isEight) {
+                        this.ctx.fillStyle = 'white';
+                        this.ctx.font = 'bold 10px Arial';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.textBaseline = 'middle';
+                        this.ctx.fillText('8', ball.x, ball.y);
+                    }
+                    
+                    if (!ball.isEight && ball.number) {
+                        this.ctx.fillStyle = ball.isStripe ? ball.color : 'white';
+                        this.ctx.font = 'bold 8px Arial';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.textBaseline = 'middle';
+                        this.ctx.fillText(ball.number.toString(), ball.x, ball.y);
+                    }
+                    
+                    this.ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.stroke();
+                    
+                    const g = this.ctx.createRadialGradient(
+                        ball.x-4, ball.y-4, 0,
+                        ball.x, ball.y, ball.radius
+                    );
+                    g.addColorStop(0, 'rgba(255,255,255,0.9)');
+                    g.addColorStop(0.3, 'rgba(255,255,255,0.3)');
+                    g.addColorStop(1, 'rgba(255,255,255,0)');
+                    this.ctx.fillStyle = g;
+                    this.ctx.fill();
+                });
+                
+                if (this.isFreeBall && !this.freeBallPlaced) {
+                    this.ctx.strokeStyle = `rgba(255, 215, 0, ${0.5 + Math.sin(Date.now()/200)*0.3})`;
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.cueBall.x, this.cueBall.y, this.cueBall.radius + 5, 0, Math.PI*2);
+                    this.ctx.stroke();
+                }
+                
+                if (this.isAiming) {
+                    const dx = this.aimEnd.x - this.aimStart.x;
+                    const dy = this.aimEnd.y - this.aimStart.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (dist > 5) {
+                        this.ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.setLineDash([6, 4]);
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(this.aimStart.x, this.aimStart.y);
+                        this.ctx.lineTo(this.aimEnd.x, this.aimEnd.y);
+                        this.ctx.stroke();
+                        
+                        const angle = Math.atan2(dy, dx);
+                        const pl = Math.min(dist * 2.6, 280);
+                        this.ctx.strokeStyle = 'rgba(255,255,0,0.6)';
+                        this.ctx.lineWidth = 1.5;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(this.aimStart.x, this.aimStart.y);
+                        this.ctx.lineTo(
+                            this.aimStart.x - Math.cos(angle)*pl,
+                            this.aimStart.y - Math.sin(angle)*pl
+                        );
+                        this.ctx.stroke();
+                        this.ctx.setLineDash([]);
+                        
+                        this.ctx.strokeStyle = `hsl(${120 - (this.power/180)*120}, 100%, 50%)`;
+                        this.ctx.lineWidth = 3;
+                        this.ctx.beginPath();
+                        this.ctx.arc(this.aimStart.x, this.aimStart.y, 25, 0, Math.PI*2);
+                        this.ctx.stroke();
+                    }
+                }
+                
+                if (!this.isBallMoving() && !this.gameEnded && !this.isAiming && !(this.isFreeBall && !this.freeBallPlaced)) {
+                    const angle = -Math.PI/2;
+                    const len = 80;
+                    const sx = this.cueBall.x + Math.cos(angle)*(this.cueBall.radius+15);
+                    const sy = this.cueBall.y + Math.sin(angle)*(this.cueBall.radius+15);
+                    
+                    this.ctx.strokeStyle = '#8b4513';
+                    this.ctx.lineWidth = 5;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(sx, sy);
+                    this.ctx.lineTo(sx + Math.cos(angle)*len, sy + Math.sin(angle)*len);
+                    this.ctx.stroke();
+                    
+                    this.ctx.fillStyle = '#d2691e';
+                    this.ctx.beginPath();
+                    this.ctx.arc(sx, sy, 3, 0, Math.PI*2);
+                    this.ctx.fill();
+                }
+            }
+
+            updateUI() {
+                const remaining = this.balls.filter(b => !b.potted && b.type === 'colored').length;
+                
+                this.updatePlayerIndicator();
+                this.updateTopBallsDisplay();
+                
+                if (remaining === 0) this.endGame();
+            }
+
+            updatePlayerIndicator() {
+                document.getElementById('playerRow1').classList.toggle('active', this.currentPlayer === 1);
+                document.getElementById('playerRow2').classList.toggle('active', this.currentPlayer === 2);
+            }
+
+            updatePlayerNames() {
+                document.getElementById('nameTop2').textContent = this.gameMode === 'ai' ? '电脑' : '玩家2';
+            }
+
+            endGame() {
+                this.gameEnded = true;
+                const w = this.scores.player1 > this.scores.player2 ? '玩家1' :
+                          this.scores.player1 < this.scores.player2 ? '玩家2' : '平局';
+                setTimeout(() => {
+                    alert(`游戏结束！\n玩家1: ${this.scores.player1}分\n玩家2: ${this.scores.player2}分\n\n${w === '平局' ? '平局！' : w + '获胜！'}`);
+                }, 600);
+            }
+
+            newGame() {
+                this.gameStarted = false;
+                this.gameEnded = false;
+                this.currentPlayer = 1;
+                this.scores = { player1: 0, player2: 0 };
+                this.foulCommitted = false;
+                this.ballsPottedThisTurn = 0;
+                this.pottedBallsThisTurn = [];
+                this.isAiming = false;
+                this.isFreeBall = false;
+                this.freeBallPlaced = false;
+                this.isDraggingFreeBall = false;
+                this.firstHitBall = null;
+                this.power = 50;
+                
+                this.playerGroups = { player1: null, player2: null };
+                this.groupAssigned = false;
+                
+                this.hideConfirmSection();
+                this.updatePowerDisplay();
+                this.createBalls();
+                this.updateUI();
+            }
+
+            resetGame() {
+                this.newGame();
+            }
+
+            gameLoop() {
+                this.updatePhysics();
+                this.render();
+                
+                if (this.gameStarted && !this.isBallMoving() && !this.gameEnded && !(this.isFreeBall && !this.freeBallPlaced)) {
+                    if (this.ballsPottedThisTurn === 0 || this.foulCommitted) {
+                        this.switchPlayer();
+                    }
+                    this.gameStarted = false;
+                }
+                
+                if (!this.gameEnded) this.updateUI();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        window.addEventListener('load', () => new BilliardGame());
+    </script>
+</body>
+</html>

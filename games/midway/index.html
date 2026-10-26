@@ -1,0 +1,2662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title>中途岛空战 · 崔彦斌的游戏空间</title>
+    <meta name="description" content="3D 空战飞行模拟：从企业号甲板起飞，俯冲轰炸，击沉四艘日本航母。">
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" href="../../assets/img/favicon.svg" type="image/svg+xml">
+    <style>
+        * { touch-action: none; user-select: none; -webkit-user-select: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        #control-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; }
+        
+        .hud-text { text-shadow: 0 0 10px rgba(0, 255, 0, 0.8); }
+        .crosshair {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 60px; height: 60px; pointer-events: none; opacity: 0.8;
+        }
+        .crosshair::before, .crosshair::after {
+            content: ''; position: absolute; background: rgba(0, 255, 0, 0.9);
+            box-shadow: 0 0 15px #0f0;
+        }
+        .crosshair::before { width: 3px; height: 30px; left: 28px; top: 15px; }
+        .crosshair::after { width: 30px; height: 3px; left: 15px; top: 28px; }
+        .crosshair-circle {
+            position: absolute; width: 50px; height: 50px;
+            border: 2px solid rgba(0, 255, 0, 0.6);
+            border-radius: 50%; left: 5px; top: 5px;
+        }
+        
+        .damage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 40%, rgba(255, 0, 0, 0.5) 100%);
+            pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 100;
+        }
+        
+        .joystick-area {
+            position: absolute; bottom: 120px; left: 40px;
+            width: 180px; height: 180px; pointer-events: auto;
+        }
+        .joystick-base {
+            position: absolute; width: 180px; height: 180px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15); border: 3px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        .joystick-knob {
+            position: absolute; width: 70px; height: 70px; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #4ade80, #166534);
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            left: 55px; top: 55px; box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        }
+        .joystick-knob.active { transform: scale(0.9); }
+        
+        .throttle-area {
+            position: absolute; bottom: 120px; right: 40px;
+            width: 100px; height: 240px; pointer-events: auto;
+        }
+        .throttle-base {
+            position: absolute; width: 100px; height: 240px; border-radius: 50px;
+            background: rgba(255, 255, 255, 0.15); border: 3px solid rgba(255, 255, 255, 0.4);
+            overflow: hidden;
+        }
+        .throttle-fill {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: linear-gradient(to top, #22c55e, #eab308, #ef4444);
+            opacity: 0.8; transition: height 0.1s;
+        }
+        .throttle-knob {
+            position: absolute; width: 90px; height: 90px; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fb923c, #c2410c);
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            left: 5px; bottom: 75px; box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        }
+        
+        .action-btn {
+            position: absolute; width: 90px; height: 90px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: white; font-size: 16px;
+            pointer-events: auto; box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            border: 3px solid rgba(255,255,255,0.5);
+        }
+        .action-btn:active { transform: scale(0.92); }
+        
+        .bomb-btn { 
+            bottom: 520px; right: 40px; 
+            background: radial-gradient(circle at 30% 30%, #fbbf24, #b45309);
+            width: 80px; height: 80px; font-size: 14px;
+        }
+        
+        .shoot-btn {
+            bottom: 400px; right: 40px;
+            background: radial-gradient(circle at 30% 30%, #ef4444, #991b1b);
+        }
+        
+        .brake-btn { 
+            bottom: 120px; right: 160px; 
+            background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb);
+            width: 80px; height: 80px; font-size: 14px;
+        }
+        
+        .dive-btn {
+            bottom: 400px; right: 160px;
+            background: radial-gradient(circle at 30% 30%, #a855f7, #6b21a8);
+            width: 80px; height: 80px; font-size: 14px;
+        }
+        
+        .radar {
+            position: absolute; top: 100px; right: 20px;
+            width: 160px; height: 160px; border: 3px solid #0f0;
+            border-radius: 50%; background: rgba(0, 20, 0, 0.9);
+            overflow: hidden; pointer-events: none;
+        }
+        .radar-sweep {
+            position: absolute; top: 50%; left: 50%; width: 50%; height: 2px;
+            background: linear-gradient(90deg, transparent, #0f0);
+            transform-origin: left center; animation: sweep 3s linear infinite;
+        }
+        @keyframes sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .radar-blip {
+            position: absolute; width: 10px; height: 10px; background: #f00;
+            border-radius: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #f00;
+        }
+        .radar-carrier { background: #ff0000 !important; box-shadow: 0 0 15px #ff0000 !important; width: 14px; height: 14px; }
+        .radar-ally { background: #00ff00 !important; box-shadow: 0 0 10px #00ff00 !important; width: 8px; height: 8px; }
+        .radar-home { background: #00ffff !important; box-shadow: 0 0 12px #00ffff !important; width: 12px; height: 12px; }
+        .radar-direction {
+            position: absolute; top: 50%; left: 50%; width: 0; height: 0;
+            border-left: 8px solid transparent; border-right: 8px solid transparent;
+            border-bottom: 16px solid #ffff00;
+            transform-origin: center bottom;
+            transform: translate(-50%, -100%);
+            filter: drop-shadow(0 0 5px #ffff00);
+        }
+        
+        .warning {
+            position: absolute; top: 25%; left: 50%; transform: translateX(-50%);
+            color: #ff0000; font-size: 28px; font-weight: bold;
+            text-shadow: 0 0 20px #ff0000; animation: blink 0.5s infinite;
+            display: none; pointer-events: none; z-index: 50;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+        .game-message {
+            position: absolute; top: 35%; left: 50%; transform: translateX(-50%);
+            color: #fff; font-size: 24px; font-weight: bold;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            text-align: center; pointer-events: none;
+            background: rgba(0, 0, 0, 0.7); padding: 20px; border-radius: 15px;
+            border: 2px solid rgba(0,255,255,0.5);
+        }
+        
+        .menu-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none; padding: 20px 40px; margin: 10px;
+            color: white; font-size: 20px; font-weight: bold;
+            border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.2s; pointer-events: auto;
+        }
+        .menu-btn:active { transform: scale(0.95); }
+        .midway-btn { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+        
+        .hidden { display: none !important; }
+        
+        .dive-indicator {
+            position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+            color: #a855f7; font-size: 22px; font-weight: bold;
+            text-shadow: 0 0 15px #a855f7; display: none; pointer-events: none;
+        }
+        
+        .carrier-health {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 15px; pointer-events: none;
+        }
+        .carrier-bar {
+            background: rgba(0,0,0,0.7); border: 2px solid #666;
+            border-radius: 8px; padding: 8px 12px; text-align: center;
+        }
+        .carrier-name { color: #fff; font-size: 12px; font-weight: bold; }
+        .carrier-hp { color: #ef4444; font-size: 14px; }
+        .carrier-bar.destroyed { border-color: #333; opacity: 0.5; }
+        .carrier-bar.destroyed .carrier-name { color: #666; text-decoration: line-through; }
+        .carrier-bar.destroyed .carrier-hp { color: #666; }
+        
+        .status-panel {
+            position: absolute; top: 100px; left: 20px;
+            background: rgba(0,0,0,0.6); border: 2px solid #0ff;
+            border-radius: 10px; padding: 10px 15px;
+            color: #0ff; font-size: 14px; pointer-events: none;
+        }
+        
+        .compass {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 40px; background: rgba(0,0,0,0.7);
+            border: 2px solid #0f0; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            color: #0f0; font-size: 16px; font-weight: bold;
+            pointer-events: none;
+        }
+    
+  /* ---------- 内置 Tailwind 关键工具类（原页面走 CDN，这里本地化以保证离线可用） ---------- */
+  h1,h2,h3,p{margin:0}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  .hidden{display:none!important}
+  .absolute{position:absolute}
+  .inset-0{inset:0}
+  .top-4{top:1rem}.right-4{right:1rem}.left-4{left:1rem}
+  .z-50{z-index:50}
+  .flex{display:flex}.flex-col{flex-direction:column}
+  .items-center{align-items:center}.justify-center{justify-content:center}
+  .gap-2{gap:.5rem}
+  .space-y-1>*+*{margin-top:.25rem}
+  .text-center{text-align:center}
+  .font-bold{font-weight:700}
+  .leading-tight{line-height:1.25}
+  .max-w-md{max-width:28rem}
+  .w-3{width:.75rem}.h-3{height:.75rem}
+  .rounded-full{border-radius:9999px}.rounded-xl{border-radius:.75rem}
+  .border{border-width:1px;border-style:solid;border-color:currentColor}
+  .border-green-500\/30{border-color:rgba(34,197,94,.3)}
+  .border-white\/30{border-color:rgba(255,255,255,.3)}
+  .p-3{padding:.75rem}.p-4{padding:1rem}
+  .px-4{padding-left:1rem;padding-right:1rem}
+  .px-8{padding-left:2rem;padding-right:2rem}
+  .mb-2{margin-bottom:.5rem}.mb-4{margin-bottom:1rem}
+  .mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}
+  .mt-2{margin-top:.5rem}.mt-8{margin-top:2rem}
+  .text-sm{font-size:.875rem;line-height:1.4}
+  .text-lg{font-size:1.125rem;line-height:1.6}
+  .text-xl{font-size:1.25rem;line-height:1.6}
+  .text-2xl{font-size:1.5rem;line-height:1.8}
+  .text-5xl{font-size:3rem;line-height:1.06}
+  .text-6xl{font-size:3.75rem;line-height:1}
+  .text-yellow-400{color:#facc15}
+  .text-red-500{color:#ef4444}.text-red-400{color:#f87171}
+  .text-green-400{color:#4ade80}
+  .text-cyan-400{color:#22d3ee}
+  .text-gray-300{color:#d1d5db}.text-gray-400{color:#9ca3af}
+  .text-white{color:#fff}.text-transparent{color:transparent}
+  .bg-red-500{background-color:#ef4444}
+  .bg-green-500{background-color:#22c55e}
+  .bg-blue-500{background-color:#3b82f6}
+  .bg-black\/60{background-color:rgba(0,0,0,.6)}
+  .bg-black\/95{background-color:rgba(0,0,0,.95)}
+  .from-cyan-400{--g-from:#22d3ee}
+  .to-blue-500{--g-to:#3b82f6}
+  .from-slate-900{--g-from:#0f172a}
+  .via-purple-900{--g-via:#581c87}
+  .to-slate-900{--g-to:#0f172a}
+  .bg-gradient-to-r{background-image:linear-gradient(to right,var(--g-from,transparent),var(--g-to,transparent))}
+  .bg-gradient-to-b{background-image:linear-gradient(to bottom,var(--g-from,transparent),var(--g-via,transparent),var(--g-to,transparent))}
+  .bg-clip-text{-webkit-background-clip:text;background-clip:text}
+  .shadow-lg{box-shadow:0 4px 12px rgba(0,0,0,.45)}
+  .shadow-red-500\/50{box-shadow:0 0 10px rgba(239,68,68,.55)}
+  .shadow-green-500\/50{box-shadow:0 0 10px rgba(34,197,94,.55)}
+  .shadow-blue-500\/50{box-shadow:0 0 10px rgba(59,130,246,.55)}
+
+  /* ---------- 站点导航：返回游戏空间（图标按钮，悬停展开文案） ---------- */
+  #back-link{position:fixed;top:calc(10px + env(safe-area-inset-top));
+    left:calc(10px + env(safe-area-inset-left));z-index:9999;
+    display:inline-flex;align-items:center;justify-content:center;gap:5px;
+    height:32px;width:32px;padding:0;opacity:.82;
+    color:#dfe7ff;background:rgba(8,11,26,.72);border:2px solid rgba(120,140,220,.45);border-radius:6px;
+    font:600 12px/1 ui-monospace,Menlo,Consolas,monospace;text-decoration:none;
+    transition:width .16s ease,opacity .16s ease,background .16s ease}
+  #back-link:hover,#back-link:focus-visible{width:96px;opacity:1;background:rgba(22,30,64,.94)}
+  #back-link svg{flex:0 0 auto}
+  #back-link em{display:none;font-style:normal;white-space:nowrap}
+  #back-link:hover em,#back-link:focus-visible em{display:block}
+
+  #back-link{top:168px}
+</style>
+</head>
+<body>
+  <a id="back-link" href="../../index.html" title="返回游戏空间" aria-label="返回游戏空间"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg><em>游戏空间</em></a>
+
+
+<div id="canvas-container"></div>
+
+<div id="ui-layer" class="hidden">
+    <div class="crosshair"><div class="crosshair-circle"></div></div>
+    
+    <div class="absolute top-4 left-4 text-green-400 font-bold text-lg hud-text bg-black/60 p-4 rounded-xl border border-green-500/30">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></span>
+            <span>速度: <span id="speed">0</span> km/h</span>
+        </div>
+        <div class="flex items-center gap-2 mb-2">
+            <span class="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50"></span>
+            <span>高度: <span id="altitude">0</span> m</span>
+        </div>
+        <div class="flex items-center gap-2 mb-2">
+            <span class="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50" id="health-indicator"></span>
+            <span>装甲: <span id="health">100</span>%</span>
+        </div>
+        <div class="text-yellow-400 mt-2 text-sm">
+            零式: <span id="enemies">0</span> | 炸弹: <span id="bombs">20</span> | 机炮: <span id="cannon">1800</span> | 击沉: <span id="sunk">0</span>/4
+        </div>
+    </div>
+
+    <div class="status-panel" id="status-panel">
+        <div>🎯 状态: <span id="flight-status">甲板待命</span></div>
+        <div id="resupply-timer" class="hidden">⏱️ 补给中: <span id="timer">10</span>秒</div>
+        <div id="home-distance">📍 距企业号: <span id="dist-home">0</span>m</div>
+    </div>
+
+    <div class="absolute top-4 right-4 text-white font-bold text-xl bg-black/60 p-3 rounded-xl border border-white/30">
+        <span id="mode-text" class="text-red-500">中途岛海战</span>
+    </div>
+
+    <div class="radar">
+        <div class="radar-sweep"></div>
+        <div id="radar-blips"></div>
+        <div class="radar-direction" id="radar-direction"></div>
+    </div>
+
+    <div class="warning" id="warning">⚠ 失速警告！拉起来！ ⚠</div>
+    <div class="dive-indicator" id="dive-indicator">🔥 俯冲轰炸模式 - 大角度俯冲！</div>
+    <div class="damage-overlay" id="damage"></div>
+    <div id="message" class="game-message hidden"></div>
+    
+    <div class="carrier-health" id="carrier-health"></div>
+    
+    <div class="compass" id="compass">N</div>
+</div>
+
+<div id="control-layer" class="hidden">
+    <div class="joystick-area" id="joystick-area">
+        <div class="joystick-base"></div>
+        <div class="joystick-knob" id="joystick-knob"></div>
+    </div>
+    
+    <div class="action-btn bomb-btn" id="bomb-btn">💣<<br>投弹</div>
+    <div class="action-btn shoot-btn" id="shoot-btn">🔫<<br>射击</div>
+    
+    <div class="throttle-area" id="throttle-area">
+        <div class="throttle-base">
+            <div class="throttle-fill" id="throttle-fill" style="height: 0%"></div>
+        </div>
+        <div class="throttle-knob" id="throttle-knob" style="bottom: 0px"></div>
+    </div>
+    
+    <div class="action-btn brake-btn" id="brake-btn">🛑<<br>减速</div>
+    <div class="action-btn dive-btn" id="dive-btn">📐<<br>俯冲</div>
+</div>
+
+<div id="menu" class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 z-50">
+    <h1 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-4 text-center px-4 leading-tight">
+        3D 空战飞行<br>模拟器
+    </h1>
+    <p class="text-gray-300 mb-8 text-center px-8 text-lg">高清画质版 | 支持城市与森林地形</p>
+    
+    <button class="menu-btn" onclick="startGame('normal')">
+        ✈️ 普通飞行模式
+    </button>
+    <button class="menu-btn midway-btn" onclick="startGame('midway')">
+        ⚓ 中途岛海战
+    </button>
+    
+    <div class="mt-8 text-gray-400 text-sm text-center px-4 max-w-md space-y-1">
+        <p class="text-yellow-400 font-bold mb-2">🎮 操作说明：</p>
+        <p>🕹️ 左侧摇杆 - 控制飞行方向（上拉抬头，下推低头）</p>
+        <p>⬆️ 右侧滑条 - 控制引擎推力</p>
+        <p>💣 黄色按钮 - 投弹轰炸航母（20发）</p>
+        <p>🔫 红色按钮 - 机炮射击（1800发，长按连射）</p>
+        <p>📐 紫色按钮 - 进入俯冲轰炸</p>
+        <p>🔵 蓝色按钮 - 紧急制动</p>
+        <p class="mt-2 text-cyan-400">🛫 从企业号甲板起飞</p>
+        <p class="text-cyan-400">🔄 起飞后返航企业号50m内自动补给</p>
+        <p class="text-red-400 font-bold">⚠️ 避开零式战斗机和防空炮火！</p>
+        <p class="text-yellow-400">🎯 目标：击沉赤城、加贺、苍龙、飞龙！</p>
+    </div>
+</div>
+
+<div id="gameover" class="absolute inset-0 flex flex-col items-center justify-center bg-black/95 hidden z-50">
+    <h2 id="gameover-title" class="text-6xl font-bold text-red-500 mb-4">坠毁!</h2>
+    <p id="gameover-reason" class="text-xl text-gray-300 mb-2 text-center px-4"></p>
+    <p id="gameover-detail" class="text-lg text-gray-400 mb-8 text-center px-4"></p>
+    <div id="gameover-stats" class="text-yellow-400 text-lg mb-6 text-center"></div>
+    <button onclick="location.reload()" class="menu-btn text-2xl">
+        🔄 重新开始
+    </button>
+</div>
+
+<script src="../../assets/vendor/three.min.js"></script>
+<script src="../../assets/js/common.js"></script>
+<script>
+const state = {
+    mode: 'normal',
+    playing: false,
+    speed: 0,
+    maxSpeed: 450,
+    diveSpeed: 800,
+    minSpeed: 0,
+    health: 100,
+    score: 0,
+    bombs: 20,
+    maxBombs: 20,
+    cannonAmmo: 1800,
+    maxCannonAmmo: 1800,
+    sunkCarriers: 0,
+    isDiving: false,
+    flightStatus: 'ground',
+    hasTakenOff: false,
+    resupplyTime: 0,
+    resupplyMaxTime: 10,
+    enemies: [],
+    allies: [],
+    bullets: [],
+    enemyBullets: [],
+    flak: [],
+    particles: [],
+    carriers: [],
+    homeCarrier: null,
+    plane: null,
+    crashed: false,
+    joystick: { active: false, x: 0, pitchCommand: 0, touchId: null },
+    throttle: { active: false, value: 0, touchId: null },
+    brake: false,
+    lastShot: 0,
+    lastBomb: 0,
+    lastCannon: 0,
+    cannonFiring: false,
+    cannonFireInterval: null,
+    water: null,
+    time: 0,
+    takeoffImmunity: 0
+};
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x4a90e2);
+scene.fog = new THREE.Fog(0x4a90e2, 300, 2000);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+sunLight.position.set(200, 300, 100);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 1500;
+sunLight.shadow.camera.left = -800;
+sunLight.shadow.camera.right = 800;
+sunLight.shadow.camera.top = 800;
+sunLight.shadow.camera.bottom = -800;
+scene.add(sunLight);
+
+// 海面
+const waterGeometry = new THREE.PlaneGeometry(5000, 5000, 128, 128);
+const waterMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x1e6091,
+    roughness: 0.1,
+    metalness: 0.3,
+    transparent: true,
+    opacity: 0.9
+});
+const water = new THREE.Mesh(waterGeometry, waterMaterial);
+water.rotation.x = -Math.PI / 2;
+water.position.y = -2;
+water.receiveShadow = true;
+scene.add(water);
+state.water = water;
+
+const waterPositions = water.geometry.attributes.position;
+const waterOriginalZ = [];
+for (let i = 0; i < waterPositions.count; i++) {
+    waterOriginalZ.push(waterPositions.getZ(i));
+}
+
+function updateWater(time) {
+    for (let i = 0; i < waterPositions.count; i++) {
+        const x = waterPositions.getX(i);
+        const y = waterPositions.getY(i);
+        const wave = Math.sin(x * 0.02 + time * 2) * 1.5 + 
+                     Math.cos(y * 0.015 + time * 1.5) * 1.5 +
+                     Math.sin((x + y) * 0.01 + time) * 0.5;
+        waterPositions.setZ(i, waterOriginalZ[i] + wave);
+    }
+    waterPositions.needsUpdate = true;
+    water.geometry.computeVertexNormals();
+}
+
+// ========== 创建企业号 ==========
+function createEnterprise() {
+    const group = new THREE.Group();
+    
+    const hull = new THREE.Mesh(
+        new THREE.BoxGeometry(40, 14, 280),
+        new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.8 })
+    );
+    hull.position.y = 7;
+    hull.castShadow = true;
+    hull.receiveShadow = true;
+    group.add(hull);
+    
+    const bow = new THREE.Mesh(
+        new THREE.CylinderGeometry(20, 20, 14, 16, 1, false, 0, Math.PI),
+        new THREE.MeshStandardMaterial({ color: 0x4a5568 })
+    );
+    bow.rotation.z = Math.PI / 2;
+    bow.rotation.y = Math.PI / 2;
+    bow.position.set(0, 7, -140);
+    group.add(bow);
+    
+    const deck = new THREE.Mesh(
+        new THREE.BoxGeometry(42, 1, 290),
+        new THREE.MeshStandardMaterial({ color: 0x8B7355, roughness: 0.9 })
+    );
+    deck.position.y = 14.5;
+    deck.receiveShadow = true;
+    group.add(deck);
+    
+    for (let i = -120; i <= 120; i += 40) {
+        const line = new THREE.Mesh(
+            new THREE.PlaneGeometry(36, 1.5),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        line.rotation.x = -Math.PI / 2;
+        line.position.set(0, 15.01, i);
+        group.add(line);
+    }
+    
+    const landingZone = new THREE.Mesh(
+        new THREE.PlaneGeometry(20, 80),
+        new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.3 })
+    );
+    landingZone.rotation.x = -Math.PI / 2;
+    landingZone.position.set(0, 15.02, 80);
+    group.add(landingZone);
+    
+    const island = new THREE.Mesh(
+        new THREE.BoxGeometry(6, 18, 25),
+        new THREE.MeshStandardMaterial({ color: 0x4a5568 })
+    );
+    island.position.set(18, 22, -70);
+    island.castShadow = true;
+    group.add(island);
+    
+    const bridge = new THREE.Mesh(
+        new THREE.BoxGeometry(5, 10, 15),
+        new THREE.MeshStandardMaterial({ color: 0x555555 })
+    );
+    bridge.position.set(18, 36, -70);
+    group.add(bridge);
+    
+    const funnel = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.5, 3, 14),
+        new THREE.MeshStandardMaterial({ color: 0x444444 })
+    );
+    funnel.position.set(18, 42, -65);
+    group.add(funnel);
+    
+    const flag = new THREE.Mesh(
+        new THREE.PlaneGeometry(8, 5),
+        new THREE.MeshBasicMaterial({ color: 0xff0000 })
+    );
+    flag.position.set(0, 20, -141);
+    group.add(flag);
+    
+    const textMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(20, 4),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    textMesh.rotation.x = -Math.PI / 2;
+    textMesh.position.set(0, 15.03, 0);
+    group.add(textMesh);
+    
+    const aaPositions = [
+        [-18, 15, -100], [18, 15, -100], [-18, 15, -50], [18, 15, -50],
+        [-18, 15, 0], [18, 15, 0], [-18, 15, 50], [18, 15, 50],
+        [0, 15, -130], [0, 15, 130], [-10, 25, -70], [22, 25, -70]
+    ];
+    
+    aaPositions.forEach(pos => {
+        const aaGun = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.8, 1, 2.5),
+            new THREE.MeshStandardMaterial({ color: 0x333333 })
+        );
+        aaGun.position.set(...pos);
+        group.add(aaGun);
+    });
+    
+    for (let i = 0; i < 3; i++) {
+        const plane = createDauntless(false);
+        plane.scale.set(0.6, 0.6, 0.6);
+        plane.position.set((Math.random()-0.5)*15, 15.5, 60 + i*30);
+        plane.rotation.y = Math.PI / 2;
+        group.add(plane);
+    }
+    
+    group.position.set(0, 0, 0);
+    group.userData = { 
+        name: '企业号', 
+        type: 'home',
+        width: 40, 
+        depth: 280, 
+        height: 50 
+    };
+    
+    return group;
+}
+
+// ========== 创建SBD"无畏"俯冲轰炸机 ==========
+function createDauntless(isPlayer = false) {
+    const group = new THREE.Group();
+    const color = isPlayer ? 0x4a6741 : 0x5a7d52;
+    
+    const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.8, 1.2, 7, 8),
+        new THREE.MeshStandardMaterial({ color: color, metalness: 0.4, roughness: 0.6 })
+    );
+    body.rotation.x = Math.PI / 2;
+    body.castShadow = true;
+    group.add(body);
+    
+    const nose = new THREE.Mesh(
+        new THREE.SphereGeometry(0.9, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.7 })
+    );
+    nose.position.z = -3.5;
+    group.add(nose);
+    
+    const cockpit = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, 1, 2),
+        new THREE.MeshStandardMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.6, metalness: 0.9 })
+    );
+    cockpit.position.set(0, 0.8, -1);
+    group.add(cockpit);
+    
+    const rearCockpit = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 0.8, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.6 })
+    );
+    rearCockpit.position.set(0, 0.7, 2);
+    group.add(rearCockpit);
+    
+    const wingGeo = new THREE.BoxGeometry(12, 0.2, 2.5);
+    const wingMat = new THREE.MeshStandardMaterial({ color: color, metalness: 0.4 });
+    const wings = new THREE.Mesh(wingGeo, wingMat);
+    wings.position.set(0, 0, 0.5);
+    wings.castShadow = true;
+    group.add(wings);
+    
+    const hTail = new THREE.Mesh(
+        new THREE.BoxGeometry(3.5, 0.2, 1.8),
+        new THREE.MeshStandardMaterial({ color: color })
+    );
+    hTail.position.set(0, 0.3, 3.2);
+    group.add(hTail);
+    
+    const vTail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 2, 2),
+        new THREE.MeshStandardMaterial({ color: color })
+    );
+    vTail.position.set(0, 1.2, 3);
+    group.add(vTail);
+    
+    const gearL = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.15, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x333333 })
+    );
+    gearL.position.set(-2.5, -0.8, 0.5);
+    group.add(gearL);
+    
+    const gearR = gearL.clone();
+    gearR.position.set(2.5, -0.8, 0.5);
+    group.add(gearR);
+    
+    const tailHook = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, 2),
+        new THREE.MeshStandardMaterial({ color: 0x333333 })
+    );
+    tailHook.rotation.x = Math.PI / 3;
+    tailHook.position.set(0, -0.5, 3.8);
+    group.add(tailHook);
+    
+    const engineGeo = new THREE.CylinderGeometry(0.5, 0.4, 1.2, 8);
+    engineGeo.rotateX(Math.PI / 2);
+    const engineMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8 });
+    
+    const eng = new THREE.Mesh(engineGeo, engineMat);
+    eng.position.set(0, 0, 3.8);
+    group.add(eng);
+    
+    for (let i = 0; i < 3; i++) {
+        const blade = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 2.8, 0.05),
+            new THREE.MeshStandardMaterial({ color: 0x222222 })
+        );
+        blade.position.set(0, 0, 4.5);
+        blade.rotation.z = (Math.PI * 2 / 3) * i;
+        blade.userData = { isProp: true };
+        group.add(blade);
+    }
+    
+    const bombRack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.3, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x333333 })
+    );
+    bombRack.position.set(0, -0.8, 0);
+    group.add(bombRack);
+    
+    const bomb = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.5, 0.4, 1.5, 8),
+        new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6 })
+    );
+    bomb.rotation.x = Math.PI / 2;
+    bomb.position.set(0, -1.3, 0);
+    bomb.userData = { isBomb: true };
+    group.add(bomb);
+    
+    const diveBrakeL = new THREE.Mesh(
+        new THREE.BoxGeometry(1.8, 0.1, 1.2),
+        new THREE.MeshStandardMaterial({ color: 0x444444 })
+    );
+    diveBrakeL.position.set(-2.5, -0.4, 0.5);
+    diveBrakeL.userData = { isDiveBrake: true };
+    group.add(diveBrakeL);
+    
+    const diveBrakeR = diveBrakeL.clone();
+    diveBrakeR.position.set(2.5, -0.4, 0.5);
+    group.add(diveBrakeR);
+    
+    const starBg = new THREE.Mesh(
+        new THREE.CircleGeometry(0.7, 32),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    starBg.position.set(0, 0.01, -2);
+    starBg.rotation.x = -Math.PI / 2;
+    group.add(starBg);
+    
+    const star = new THREE.Mesh(
+        new THREE.CircleGeometry(0.5, 5),
+        new THREE.MeshBasicMaterial({ color: 0x0000ff })
+    );
+    star.position.set(0, 0.02, -2);
+    star.rotation.x = -Math.PI / 2;
+    group.add(star);
+    
+    const engineGlow = new THREE.PointLight(0xff6600, 0.5, 8);
+    engineGlow.position.set(0, 0, 4.2);
+    group.add(engineGlow);
+    
+    return group;
+}
+
+function createMustang() {
+    const group = new THREE.Group();
+    
+    const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.6, 0.9, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0x8B7355, metalness: 0.5, roughness: 0.4 })
+    );
+    body.rotation.x = Math.PI / 2;
+    body.castShadow = true;
+    group.add(body);
+    
+    const canopy = new THREE.Mesh(
+        new THREE.SphereGeometry(0.9, 8, 8, 0, Math.PI * 2, 0, Math.PI/2),
+        new THREE.MeshStandardMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.5, metalness: 0.9 })
+    );
+    canopy.position.set(0, 0.5, -1.5);
+    group.add(canopy);
+    
+    const wingGeo = new THREE.BoxGeometry(9, 0.15, 2.5);
+    const wing = new THREE.Mesh(wingGeo, new THREE.MeshStandardMaterial({ color: 0x8B7355, metalness: 0.4 }));
+    wing.position.set(0, 0, 0.5);
+    wing.castShadow = true;
+    group.add(wing);
+    
+    const hTail = new THREE.Mesh(
+        new THREE.BoxGeometry(3, 0.15, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x8B7355 })
+    );
+    hTail.position.set(0, 0.2, 3.5);
+    group.add(hTail);
+    
+    const vTail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.15, 1.5, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x8B7355 })
+    );
+    vTail.position.set(0, 1, 3.2);
+    group.add(vTail);
+    
+    const eng = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.5, 0.4, 1.5, 8),
+        new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8 })
+    );
+    eng.rotation.x = Math.PI / 2;
+    eng.position.set(0, 0, 4.2);
+    group.add(eng);
+    
+    for (let i = 0; i < 4; i++) {
+        const blade = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 2.5, 0.05),
+            new THREE.MeshStandardMaterial({ color: 0x222222 })
+        );
+        blade.position.set(0, 0, 5);
+        blade.rotation.z = (Math.PI / 2) * i;
+        blade.userData = { isProp: true };
+        group.add(blade);
+    }
+    
+    for (let i = 0; i < 3; i++) {
+        const gun = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.08, 0.8),
+            new THREE.MeshStandardMaterial({ color: 0x333333 })
+        );
+        gun.rotation.x = Math.PI / 2;
+        gun.position.set(-0.3 + i * 0.3, -0.2, -3.5);
+        group.add(gun);
+    }
+    
+    return group;
+}
+
+function createZero() {
+    const group = new THREE.Group();
+    
+    const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.5, 0.7, 7, 8),
+        new THREE.MeshStandardMaterial({ color: 0xf5f5dc, metalness: 0.3, roughness: 0.5 })
+    );
+    body.rotation.x = Math.PI / 2;
+    body.castShadow = true;
+    group.add(body);
+    
+    const canopy = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 0.8, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.5 })
+    );
+    canopy.position.set(0, 0.6, -1);
+    group.add(canopy);
+    
+    const wingShape = new THREE.EllipseCurve(0, 0, 4.5, 1.2, 0, Math.PI * 2, false, 0);
+    const wingPoints = wingShape.getPoints(20);
+    const wingShape2 = new THREE.Shape(wingPoints);
+    const wingGeo = new THREE.ExtrudeGeometry(wingShape2, { depth: 0.2, bevelEnabled: false });
+    const wing = new THREE.Mesh(wingGeo, new THREE.MeshStandardMaterial({ color: 0xf5f5dc }));
+    wing.rotation.x = Math.PI / 2;
+    wing.position.set(0, 0, 0.5);
+    wing.castShadow = true;
+    group.add(wing);
+    
+    const hTail = new THREE.Mesh(
+        new THREE.BoxGeometry(2.5, 0.15, 1.2),
+        new THREE.MeshStandardMaterial({ color: 0xf5f5dc })
+    );
+    hTail.position.set(0, 0.2, 3);
+    group.add(hTail);
+    
+    const vTail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.15, 1.2, 1.2),
+        new THREE.MeshStandardMaterial({ color: 0xf5f5dc })
+    );
+    vTail.position.set(0, 0.9, 2.8);
+    group.add(vTail);
+    
+    const eng = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.4, 0.35, 1, 8),
+        new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8 })
+    );
+    eng.rotation.x = Math.PI / 2;
+    eng.position.set(0, 0, 3.5);
+    group.add(eng);
+    
+    for (let i = 0; i < 3; i++) {
+        const blade = new THREE.Mesh(
+            new THREE.BoxGeometry(0.12, 2.2, 0.04),
+            new THREE.MeshStandardMaterial({ color: 0x222222 })
+        );
+        blade.position.set(0, 0, 4);
+        blade.rotation.z = (Math.PI * 2 / 3) * i;
+        blade.userData = { isProp: true };
+        group.add(blade);
+    }
+    
+    const hinomaru = new THREE.Mesh(
+        new THREE.CircleGeometry(0.5, 32),
+        new THREE.MeshBasicMaterial({ color: 0xff0000 })
+    );
+    hinomaru.position.set(0, 0.01, -2);
+    hinomaru.rotation.x = -Math.PI / 2;
+    group.add(hinomaru);
+    
+    return group;
+}
+
+function createCarrier(name, x, z) {
+    const group = new THREE.Group();
+    
+    const hull = new THREE.Mesh(
+        new THREE.BoxGeometry(35, 12, 250),
+        new THREE.MeshStandardMaterial({ color: 0x4a6741, roughness: 0.8 })
+    );
+    hull.position.y = 6;
+    hull.castShadow = true;
+    hull.receiveShadow = true;
+    group.add(hull);
+    
+    const bow = new THREE.Mesh(
+        new THREE.CylinderGeometry(17.5, 17.5, 12, 16, 1, false, 0, Math.PI),
+        new THREE.MeshStandardMaterial({ color: 0x4a6741 })
+    );
+    bow.rotation.z = Math.PI / 2;
+    bow.rotation.y = Math.PI / 2;
+    bow.position.set(0, 6, -125);
+    group.add(bow);
+    
+    const deck = new THREE.Mesh(
+        new THREE.BoxGeometry(36, 1, 260),
+        new THREE.MeshStandardMaterial({ color: 0x2d5016, roughness: 0.9 })
+    );
+    deck.position.y = 12.5;
+    deck.receiveShadow = true;
+    group.add(deck);
+    
+    for (let i = -100; i <= 100; i += 40) {
+        const line = new THREE.Mesh(
+            new THREE.PlaneGeometry(30, 1),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        line.rotation.x = -Math.PI / 2;
+        line.position.set(0, 13.01, i);
+        group.add(line);
+    }
+    
+    const island = new THREE.Mesh(
+        new THREE.BoxGeometry(8, 15, 20),
+        new THREE.MeshStandardMaterial({ color: 0x4a6741 })
+    );
+    island.position.set(12, 19, -60);
+    island.castShadow = true;
+    group.add(island);
+    
+    const bridge = new THREE.Mesh(
+        new THREE.BoxGeometry(6, 8, 12),
+        new THREE.MeshStandardMaterial({ color: 0x555555 })
+    );
+    bridge.position.set(12, 30, -60);
+    group.add(bridge);
+    
+    const funnel = new THREE.Mesh(
+        new THREE.CylinderGeometry(2, 2.5, 12),
+        new THREE.MeshStandardMaterial({ color: 0x444444 })
+    );
+    funnel.position.set(12, 36, -55);
+    group.add(funnel);
+    
+    const aaPositions = [
+        [-15, 13, -80], [15, 13, -80], [-15, 13, -40], [15, 13, -40],
+        [-15, 13, 0], [15, 13, 0], [-15, 13, 40], [15, 13, 40],
+        [-15, 13, 80], [15, 13, 80], [0, 13, -100], [0, 13, 100],
+        [-10, 20, -60], [16, 20, -60], [12, 35, -55]
+    ];
+    
+    aaPositions.forEach((pos, idx) => {
+        const aaGun = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.8, 1, 2.5),
+            new THREE.MeshStandardMaterial({ color: 0x333333 })
+        );
+        aaGun.position.set(...pos);
+        group.add(aaGun);
+        
+        const barrel = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.2, 3),
+            new THREE.MeshStandardMaterial({ color: 0x222222 })
+        );
+        barrel.rotation.x = Math.PI / 2;
+        barrel.position.set(pos[0], pos[1] + 1, pos[2] - 1.5);
+        barrel.userData = { isBarrel: true, index: idx };
+        group.add(barrel);
+    });
+    
+    for (let i = 0; i < 5; i++) {
+        const plane = createZero();
+        plane.scale.set(0.6, 0.6, 0.6);
+        plane.position.set((Math.random()-0.5)*20, 13.5, (Math.random()-0.5)*100);
+        plane.rotation.y = Math.random() * Math.PI;
+        group.add(plane);
+    }
+    
+    const waterline = new THREE.Mesh(
+        new THREE.BoxGeometry(36, 0.5, 252),
+        new THREE.MeshBasicMaterial({ color: 0x8B0000 })
+    );
+    waterline.position.y = 1;
+    group.add(waterline);
+    
+    group.position.set(x, 0, z);
+    group.userData = { 
+        name: name, 
+        health: 200, 
+        maxHealth: 200, 
+        aaGuns: aaPositions.length,
+        type: 'carrier'
+    };
+    
+    return group;
+}
+
+function createBomb(pos, velocity) {
+    const bomb = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.5, 0.4, 1.5, 8),
+        new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6 })
+    );
+    bomb.rotation.x = Math.PI / 2;
+    bomb.position.copy(pos);
+    bomb.userData = {
+        velocity: velocity.clone(),
+        life: 120,
+        type: 'bomb'
+    };
+    scene.add(bomb);
+    return bomb;
+}
+
+function createFlak(pos, target) {
+    const group = new THREE.Group();
+    
+    const flash = new THREE.Mesh(
+        new THREE.SphereGeometry(1.5),
+        new THREE.MeshBasicMaterial({ color: 0xffff00, emissive: 0xffaa00, emissiveIntensity: 3 })
+    );
+    group.add(flash);
+    
+    for (let i = 0; i < 8; i++) {
+        const smoke = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5 + Math.random()*0.5),
+            new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.6 })
+        );
+        smoke.position.set((Math.random()-0.5)*2, (Math.random()-0.5)*2, (Math.random()-0.5)*2);
+        group.add(smoke);
+    }
+    
+    group.position.copy(pos);
+    
+    const dir = target.clone().sub(pos).normalize();
+    const spread = 0.3;
+    dir.x += (Math.random()-0.5)*spread;
+    dir.y += (Math.random()-0.5)*spread;
+    dir.z += (Math.random()-0.5)*spread;
+    dir.normalize();
+    
+    group.userData = {
+        velocity: dir.multiplyScalar(15 + Math.random()*10),
+        life: 40,
+        type: 'flak'
+    };
+    
+    scene.add(group);
+    return group;
+}
+
+function createExplosion(pos, scale = 1, color = 0xff6600) {
+    const mainBlast = new THREE.Mesh(
+        new THREE.SphereGeometry(3*scale, 16, 16),
+        new THREE.MeshBasicMaterial({ color: color, emissive: color, emissiveIntensity: 2, transparent: true, opacity: 0.8 })
+    );
+    mainBlast.position.copy(pos);
+    mainBlast.userData = { life: 20, maxLife: 20, scale: scale };
+    scene.add(mainBlast);
+    state.particles.push(mainBlast);
+    
+    for (let i = 0; i < 30; i++) {
+        const p = new THREE.Mesh(
+            new THREE.BoxGeometry(0.3*scale, 0.3*scale, 0.3*scale),
+            new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xff4400 : 0x444444 })
+        );
+        p.position.copy(pos);
+        p.userData = {
+            velocity: new THREE.Vector3((Math.random()-0.5)*15*scale, (Math.random()-0.5)*15*scale+5, (Math.random()-0.5)*15*scale),
+            life: 50,
+            rotationSpeed: new THREE.Vector3(Math.random()*0.3, Math.random()*0.3, Math.random()*0.3)
+        };
+        scene.add(p);
+        state.particles.push(p);
+    }
+    
+    for (let i = 0; i < 15; i++) {
+        const smoke = new THREE.Mesh(
+            new THREE.SphereGeometry(1 + Math.random()*2),
+            new THREE.MeshBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.4 })
+        );
+        smoke.position.copy(pos);
+        smoke.userData = { velocity: new THREE.Vector3((Math.random()-0.5)*3, 2+Math.random()*3, (Math.random()-0.5)*3), life: 80, grow: true };
+        scene.add(smoke);
+        state.particles.push(smoke);
+    }
+    
+    const fireLight = new THREE.PointLight(color, 5*scale, 50*scale);
+    fireLight.position.copy(pos);
+    scene.add(fireLight);
+    setTimeout(() => scene.remove(fireLight), 500);
+}
+
+function createSplash(pos) {
+    for (let i = 0; i < 20; i++) {
+        const drop = new THREE.Mesh(
+            new THREE.SphereGeometry(0.2 + Math.random()*0.3),
+            new THREE.MeshBasicMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.7 })
+        );
+        drop.position.copy(pos);
+        drop.userData = { velocity: new THREE.Vector3((Math.random()-0.5)*8, 5+Math.random()*8, (Math.random()-0.5)*8), life: 40, gravity: true };
+        scene.add(drop);
+        state.particles.push(drop);
+    }
+}
+
+function createBullet(pos, dir, isEnemy = false, isCannon = false) {
+    const bullet = new THREE.Mesh(
+        new THREE.SphereGeometry(isCannon ? 0.15 : 0.3),
+        new THREE.MeshBasicMaterial({ 
+            color: isEnemy ? 0xff0000 : (isCannon ? 0xffaa00 : 0xffff00),
+            emissive: isEnemy ? 0xff0000 : (isCannon ? 0xffaa00 : 0xffff00),
+            emissiveIntensity: 2
+        })
+    );
+    bullet.position.copy(pos);
+    bullet.userData = {
+        velocity: dir.clone().multiplyScalar(isEnemy ? 3 : (isCannon ? 8 : 5)),
+        life: isCannon ? 250 : 60,
+        isEnemy: isEnemy,
+        isCannon: isCannon,
+        type: isCannon ? 'cannon' : 'bullet'
+    };
+    scene.add(bullet);
+    return bullet;
+}
+
+// ========== 触控控制 ==========
+function setupTouchControls() {
+    const joystickArea = document.getElementById('joystick-area');
+    const joystickKnob = document.getElementById('joystick-knob');
+    const throttleArea = document.getElementById('throttle-area');
+    const throttleKnob = document.getElementById('throttle-knob');
+    const throttleFill = document.getElementById('throttle-fill');
+    const bombBtn = document.getElementById('bomb-btn');
+    const shootBtn = document.getElementById('shoot-btn');
+    const brakeBtn = document.getElementById('brake-btn');
+    const diveBtn = document.getElementById('dive-btn');
+    
+    joystickArea.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        state.joystick.touchId = touch.identifier;
+        state.joystick.active = true;
+        joystickKnob.classList.add('active');
+        updateJoystick(touch);
+    }, { passive: false });
+    
+    joystickArea.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!state.joystick.active) return;
+        for (let t of e.changedTouches) {
+            if (t.identifier === state.joystick.touchId) {
+                updateJoystick(t);
+                break;
+            }
+        }
+    }, { passive: false });
+    
+    joystickArea.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        for (let t of e.changedTouches) {
+            if (t.identifier === state.joystick.touchId) {
+                state.joystick.active = false;
+                state.joystick.x = 0;
+                state.joystick.pitchCommand = 0;
+                joystickKnob.style.left = '55px';
+                joystickKnob.style.top = '55px';
+                joystickKnob.classList.remove('active');
+                state.joystick.touchId = null;
+                break;
+            }
+        }
+    }, { passive: false });
+    
+    joystickArea.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        state.joystick.active = false;
+        state.joystick.x = 0;
+        state.joystick.pitchCommand = 0;
+        joystickKnob.style.left = '55px';
+        joystickKnob.style.top = '55px';
+        joystickKnob.classList.remove('active');
+        state.joystick.touchId = null;
+    }, { passive: false });
+    
+    function updateJoystick(touch) {
+        const rect = joystickArea.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        let dx = touch.clientX - centerX;
+        let dy = touch.clientY - centerY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const maxDist = 55;
+        
+        if (dist > maxDist) {
+            dx = (dx / dist) * maxDist;
+            dy = (dy / dist) * maxDist;
+        }
+        
+        joystickKnob.style.left = (55 + dx) + 'px';
+        joystickKnob.style.top = (55 + dy) + 'px';
+        
+        state.joystick.x = dx / maxDist;
+        // 摇杆映射：屏幕Y轴向下为正
+        // 手指向上滑动（dy为负）-> 希望飞机抬头 -> pitchCommand为正
+        // 手指向下滑动（dy为正）-> 希望飞机低头 -> pitchCommand为负
+        state.joystick.pitchCommand = -(dy / maxDist);
+    }
+    
+    throttleArea.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        state.throttle.touchId = touch.identifier;
+        state.throttle.active = true;
+        updateThrottle(touch);
+    }, { passive: false });
+    
+    throttleArea.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!state.throttle.active) return;
+        for (let t of e.changedTouches) {
+            if (t.identifier === state.throttle.touchId) {
+                updateThrottle(t);
+                break;
+            }
+        }
+    }, { passive: false });
+    
+    throttleArea.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        state.throttle.active = false;
+        state.throttle.touchId = null;
+    }, { passive: false });
+    
+    throttleArea.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        state.throttle.active = false;
+        state.throttle.touchId = null;
+    }, { passive: false });
+    
+    function updateThrottle(touch) {
+        const rect = throttleArea.getBoundingClientRect();
+        const height = rect.height;
+        const y = rect.bottom - touch.clientY;
+        
+        let value = y / height;
+        value = Math.max(0, Math.min(1, value));
+        state.throttle.value = value;
+        
+        throttleKnob.style.bottom = (value * (height - 90)) + 'px';
+        throttleFill.style.height = (value * 100) + '%';
+    }
+    
+    bombBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (state.playing && !state.crashed && state.bombs > 0 && state.flightStatus === 'flying') {
+            dropBomb();
+            bombBtn.style.transform = 'scale(0.9)';
+        }
+    }, { passive: false });
+    
+    bombBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        bombBtn.style.transform = 'scale(1)';
+    });
+    
+    shootBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (state.playing && !state.crashed && state.flightStatus === 'flying') {
+            state.cannonFiring = true;
+            shootBtn.style.transform = 'scale(0.9)';
+            shootCannon();
+            state.cannonFireInterval = setInterval(() => {
+                if (state.cannonFiring && state.playing && !state.crashed && state.flightStatus === 'flying') {
+                    shootCannon();
+                }
+            }, 120);
+        }
+    }, { passive: false });
+    
+    shootBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        state.cannonFiring = false;
+        if (state.cannonFireInterval) {
+            clearInterval(state.cannonFireInterval);
+            state.cannonFireInterval = null;
+        }
+        shootBtn.style.transform = 'scale(1)';
+    });
+    
+    shootBtn.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        state.cannonFiring = false;
+        if (state.cannonFireInterval) {
+            clearInterval(state.cannonFireInterval);
+            state.cannonFireInterval = null;
+        }
+        shootBtn.style.transform = 'scale(1)';
+    });
+    
+    diveBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (state.playing && !state.crashed && state.flightStatus === 'flying') {
+            toggleDive();
+            diveBtn.style.transform = 'scale(0.9)';
+        }
+    }, { passive: false });
+    
+    diveBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        diveBtn.style.transform = 'scale(1)';
+    });
+    
+    brakeBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        state.brake = true;
+        brakeBtn.style.transform = 'scale(0.9)';
+    }, { passive: false });
+    
+    brakeBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        state.brake = false;
+        brakeBtn.style.transform = 'scale(1)';
+    });
+}
+
+function shootCannon() {
+    if (state.cannonAmmo <= 0) {
+        if (state.cannonFiring) {
+            showMessage("机炮弹药耗尽！");
+            state.cannonFiring = false;
+            if (state.cannonFireInterval) {
+                clearInterval(state.cannonFireInterval);
+                state.cannonFireInterval = null;
+            }
+        }
+        return;
+    }
+    
+    state.cannonAmmo -= 2;
+    if (state.cannonAmmo < 0) state.cannonAmmo = 0;
+    document.getElementById('cannon').textContent = state.cannonAmmo;
+    
+    if (state.flightStatus !== 'flying') return;
+    
+    for (let offset of [-0.8, 0.8]) {
+        const shootPos = state.plane.position.clone();
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(state.plane.quaternion);
+        shootPos.add(right.multiplyScalar(offset));
+        shootPos.add(new THREE.Vector3(0, 0.2, -2).applyQuaternion(state.plane.quaternion));
+        
+        const shootDir = new THREE.Vector3(0, 0, -1).applyQuaternion(state.plane.quaternion);
+        shootDir.x += (Math.random() - 0.5) * 0.03;
+        shootDir.y += (Math.random() - 0.5) * 0.03;
+        shootDir.normalize();
+        
+        state.bullets.push(createBullet(shootPos, shootDir, false, true));
+    }
+}
+
+// ========== 俯冲轰炸切换 ==========
+function toggleDive() {
+    if (state.flightStatus !== 'flying') return;
+    state.isDiving = !state.isDiving;
+    const indicator = document.getElementById('dive-indicator');
+    
+    if (state.isDiving) {
+        indicator.style.display = 'block';
+        showMessage("进入俯冲轰炸！\n机头向下俯冲！");
+        state.plane.children.forEach(c => {
+            if (c.userData.isDiveBrake) c.rotation.x = Math.PI / 3;
+        });
+    } else {
+        indicator.style.display = 'none';
+        showMessage("退出俯冲\n自动改平");
+        state.plane.children.forEach(c => {
+            if (c.userData.isDiveBrake) c.rotation.x = 0;
+        });
+    }
+}
+
+function dropBomb() {
+    const now = Date.now();
+    if (now - state.lastBomb < 1000) return;
+    state.lastBomb = now;
+    
+    if (state.bombs <= 0) {
+        showMessage("炸弹已耗尽！返航补给！");
+        return;
+    }
+    
+    state.bombs--;
+    document.getElementById('bombs').textContent = state.bombs;
+    
+    state.plane.children.forEach(c => {
+        if (c.userData.isBomb) c.visible = false;
+    });
+    
+    const bombPos = state.plane.position.clone();
+    bombPos.y -= 2;
+    
+    const velocity = new THREE.Vector3(0, -1, 0);
+    velocity.applyQuaternion(state.plane.quaternion);
+    velocity.multiplyScalar(2);
+    velocity.y -= 3;
+    
+    const bomb = createBomb(bombPos, velocity);
+    state.bullets.push(bomb);
+    
+    showMessage("炸弹投下！");
+    
+    if (state.bombs <= 0) {
+        setTimeout(() => showMessage("炸弹耗尽！\n返回企业号补给！"), 1500);
+    }
+}
+
+// ========== 核心飞行物理（最终修复版） ==========
+function updateFlightPhysics() {
+    if (!state.plane || state.crashed) return;
+    
+    const plane = state.plane;
+    const dt = 0.016;
+    const home = state.homeCarrier;
+    
+    // ===== 速度控制 =====
+    let targetSpeed;
+    if (state.isDiving && state.flightStatus === 'flying') {
+        targetSpeed = state.diveSpeed;
+    } else {
+        targetSpeed = state.throttle.value * state.maxSpeed;
+    }
+    
+    if (state.brake) {
+        state.speed = Math.max(0, state.speed - 150 * dt);
+    } else {
+        state.speed += (targetSpeed - state.speed) * 2 * dt;
+    }
+    
+    // ===== 获取当前姿态（YXZ顺序：y=偏航, x=俯仰, z=横滚） =====
+    // Three.js YXZ欧拉角：x为正=抬头（仰角），x为负=低头（俯角）
+    const euler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+    
+    // ===== 姿态控制 =====
+    if (state.joystick.active) {
+        const rollInput = state.joystick.x;   // 左右：横滚
+        // pitchCommand: +1=抬头命令, -1=低头命令
+        const pitchInput = state.joystick.pitchCommand;
+        
+        if (state.flightStatus === 'ground') {
+            // 地面：摇杆左右控制偏航转向
+            plane.rotateY(-rollInput * 1.2 * dt);
+            
+            // 摇杆向上（pitchInput>0）-> 希望飞机抬头 -> pitchCommand为正
+            // 手指向下滑动（pitchInput<<0）-> 希望飞机低头 -> pitchCommand为负
+            if (pitchInput > 0.05) {
+                plane.rotateX(pitchInput * 0.6 * dt);
+            } else if (pitchInput < -0.05) {
+                // 摇杆向下（pitchInput<<0）-> 希望飞机低头 -> rotateX接收负值
+                plane.rotateX(pitchInput * 0.4 * dt);
+            }
+            
+            // 强制保持机翼水平
+            if (Math.abs(euler.z) > 0.02) {
+                plane.rotateZ(-euler.z * 0.3);
+            }
+            
+            // 地面限制最大低头角（不能扎向甲板）
+            const currentPitch = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ').x;
+            if (currentPitch < -0.3) { // 低头超过约17度
+                plane.rotateX(0.05); // 抬头拉回
+            }
+            
+            // 地面限制最大抬头角（起飞前防止过度抬头）
+            if (currentPitch > 0.25) {
+                plane.rotateX(-0.03);
+            }
+            
+        } else if (state.flightStatus === 'takeoff') {
+            // 起飞阶段：玩家只能轻微修正，自动起飞逻辑主导
+            if (Math.abs(rollInput) > 0.1) {
+                plane.rotateY(-rollInput * 0.5 * dt);
+            }
+            if (Math.abs(pitchInput) > 0.15) {
+                plane.rotateX(pitchInput * 0.25 * dt);
+            }
+            const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+            if (Math.abs(currentEuler.z) > 0.01) {
+                plane.rotateZ(-currentEuler.z * 0.5);
+            }
+            
+        } else if (state.isDiving) {
+            // 俯冲模式：摇杆向上=尝试改平（减小俯角），向下=加大俯冲
+            plane.rotateX(pitchInput * 0.4 * dt);
+            plane.rotateZ(-rollInput * 0.4 * dt);
+        } else {
+            // 正常飞行：完整控制
+            // 摇杆向上（pitchInput>0）-> rotateX正值 -> 抬头
+            plane.rotateX(pitchInput * 1.5 * dt);
+            plane.rotateZ(-rollInput * 1.5 * dt);
+            if (Math.abs(rollInput) > 0.1) {
+                plane.rotateY(-rollInput * 0.8 * dt);
+            }
+        }
+    } else {
+        // 无输入时自动改平
+        if (state.flightStatus === 'ground') {
+            const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+            const targetQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, currentEuler.y, 0, 'YXZ'));
+            plane.quaternion.slerp(targetQuat, 0.2);
+        } else if (state.flightStatus === 'takeoff') {
+            const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+            if (Math.abs(currentEuler.z) > 0.02) {
+                plane.rotateZ(-currentEuler.z * 0.4);
+            }
+        } else if (state.isDiving) {
+            const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+            if (Math.abs(currentEuler.z) > 0.05) {
+                plane.rotateZ(-currentEuler.z * 0.15);
+            }
+        } else {
+            const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+            if (Math.abs(currentEuler.z) > 0.02) {
+                plane.rotateZ(-currentEuler.z * 1.5 * dt);
+            }
+            if (Math.abs(currentEuler.x) > 0.05) {
+                const factor = Math.abs(currentEuler.x) > 0.5 ? 2.5 : 0.8;
+                plane.rotateX(-currentEuler.x * factor * dt);
+            }
+        }
+    }
+    
+    // ===== 俯冲轰炸：真正的大角度向下俯冲 =====
+    if (state.isDiving && state.flightStatus === 'flying') {
+        // 目标俯冲角：约70度向下（euler.x负值）
+        const targetPitch = -1.2; // 约-68度俯角
+        
+        const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+        
+        // 如果当前俯角不够大（不够负），继续低头
+        if (currentEuler.x > targetPitch) {
+            plane.rotateX(-0.04); // 负旋转使euler.x减小（更负），即低头更多
+        }
+        
+        // 俯冲时强制改平横滚（机翼水平）
+        if (Math.abs(currentEuler.z) > 0.05) {
+            plane.rotateZ(-currentEuler.z * 0.15);
+        }
+        
+        // 俯冲速度强制接近极速
+        state.speed += (state.diveSpeed - state.speed) * 0.05;
+        
+        // 俯冲时自然下沉（重力效果）
+        if (currentEuler.x < -0.3) {
+            const diveFactor = Math.min(1, (Math.abs(currentEuler.x) - 0.3) / 0.9);
+            plane.position.y -= diveFactor * 60 * dt;
+        }
+    }
+    
+    // ===== 前进运动 =====
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(plane.quaternion);
+    plane.position.add(forward.multiplyScalar(state.speed * dt * 0.1));
+    
+    // ===== 失速处理 =====
+    if (state.speed < 120 && state.flightStatus === 'flying') {
+        plane.position.y -= (120 - state.speed) * dt * 0.5;
+        document.getElementById('warning').style.display = 'block';
+    } else {
+        document.getElementById('warning').style.display = 'none';
+    }
+    
+    // ===== 高度限制（统一坠海判定） =====
+    if (plane.position.y < 0) {
+        gameOver("坠海！", "高度过低");
+        return;
+    }
+    
+    // ===== 起飞/降落/补给 状态机 =====
+    const fromHome = plane.position.clone().sub(home.position);
+    const localHome = fromHome.clone();
+    localHome.applyAxisAngle(new THREE.Vector3(0, 1, 0), -home.rotation.y);
+    const onDeck = Math.abs(localHome.x) < 22 && Math.abs(localHome.z) < 140 && localHome.y > 13 && localHome.y < 18;
+    const distToHome = fromHome.length();
+    
+    switch (state.flightStatus) {
+        case 'ground': {
+            if (onDeck) {
+                // 在甲板上
+                plane.position.y = 15.5;
+                
+                // 平滑改平姿态
+                const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+                const targetQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, currentEuler.y, 0, 'YXZ'));
+                plane.quaternion.slerp(targetQuat, 0.25);
+                
+                // 起飞条件：速度>55 且 摇杆向上拉（抬头）
+                const pullingUp = state.joystick.active && state.joystick.pitchCommand > 0.2;
+                if (state.speed > 55 && pullingUp) {
+                    state.flightStatus = 'takeoff';
+                    state.hasTakenOff = true;
+                    plane.userData.takeoffProgress = 0;
+                    document.getElementById('flight-status').textContent = '起飞中';
+                    showMessage("起飞！保持机头稳定");
+                } else if (state.speed > 70) {
+                    // 速度够快自动起飞
+                    state.flightStatus = 'takeoff';
+                    state.hasTakenOff = true;
+                    plane.userData.takeoffProgress = 0;
+                    document.getElementById('flight-status').textContent = '自动起飞';
+                }
+            } else {
+                // 不在甲板上：智能判定是否已起飞
+                if (plane.position.y < 2 && distToHome > 150) {
+                    gameOver("坠海！", "滑出甲板");
+                    return;
+                } else if (distToHome < 150 && (state.speed > 40 || plane.position.y > 10)) {
+                    // 在企业号附近且已离地 -> 自动进入起飞
+                    state.flightStatus = 'takeoff';
+                    state.hasTakenOff = true;
+                    plane.userData.takeoffProgress = 0;
+                    document.getElementById('flight-status').textContent = '自动起飞';
+                } else if (plane.position.y < 2) {
+                    gameOver("坠海！", "滑出甲板");
+                    return;
+                }
+            }
+            break;
+        }
+            
+        case 'takeoff': {
+            // 起飞进度管理（0-1），约3.5秒完成整个起飞过渡
+            if (plane.userData.takeoffProgress === undefined) plane.userData.takeoffProgress = 0;
+            plane.userData.takeoffProgress += 0.005;
+            const progress = Math.min(1, plane.userData.takeoffProgress);
+            
+            // 分阶段平滑起飞
+            if (progress < 0.35) {
+                // 阶段1：甲板滑跑抬头（0-35%）
+                const targetPitch = 0.21 * (progress / 0.35);
+                const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+                const diff = targetPitch - currentEuler.x;
+                plane.rotateX(Math.max(-0.025, Math.min(0.025, diff * 0.12)));
+                
+                if (Math.abs(currentEuler.z) > 0.005) {
+                    plane.rotateZ(-currentEuler.z * 0.5);
+                }
+                
+                if (state.speed < 160) state.speed += 1.5;
+                
+                if (currentEuler.x > 0.12 && state.speed > 60) {
+                    plane.position.y += 0.12;
+                }
+                
+            } else if (progress < 0.75) {
+                // 阶段2：离地爬升（35%-75%）
+                const phaseProgress = (progress - 0.35) / 0.4;
+                const targetPitch = 0.26 + 0.06 * phaseProgress;
+                const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+                const diff = targetPitch - currentEuler.x;
+                plane.rotateX(Math.max(-0.02, Math.min(0.02, diff * 0.1)));
+                
+                if (Math.abs(currentEuler.z) > 0.005) {
+                    plane.rotateZ(-currentEuler.z * 0.6);
+                }
+                
+                plane.position.y += 0.3 + phaseProgress * 0.25;
+                
+                if (state.speed < 220) state.speed += 1.0;
+                
+            } else {
+                // 阶段3：过渡巡航（75%-100%）
+                const phaseProgress = (progress - 0.75) / 0.25;
+                const targetPitch = 0.32 * (1 - phaseProgress) + 0.06 * phaseProgress;
+                const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+                const diff = targetPitch - currentEuler.x;
+                plane.rotateX(Math.max(-0.015, Math.min(0.015, diff * 0.08)));
+                
+                if (Math.abs(currentEuler.z) > 0.01) {
+                    plane.rotateZ(-currentEuler.z * 0.5);
+                }
+                
+                plane.position.y += 0.2 * (1 - phaseProgress);
+                
+                if (state.speed < 260) state.speed += 0.6;
+            }
+            
+            // 进入巡航判定
+            const isAirborne = plane.position.y > 45 || distToHome > 200 || (state.speed > 160 && plane.position.y > 35);
+            if (isAirborne && progress > 0.55) {
+                state.flightStatus = 'flying';
+                state.takeoffImmunity = 180; // 约3秒保护期，防止刚起飞就判定降落
+                document.getElementById('flight-status').textContent = '巡航中';
+                delete plane.userData.takeoffProgress;
+            }
+            
+            // 如果掉回甲板（放宽判定：必须几乎贴甲板且速度很低）
+            if (plane.position.y < 15.8 && onDeck && state.speed < 30) {
+                state.flightStatus = 'ground';
+                document.getElementById('flight-status').textContent = '甲板待命';
+                delete plane.userData.takeoffProgress;
+            }
+            break;
+        }
+            
+        case 'flying': {
+            // 起飞保护期倒计时
+            if (state.takeoffImmunity > 0) state.takeoffImmunity--;
+            
+            // 只有在玩家主动返航时才进入降落（低高度+近距离+低速度+低油门+保护期已过）
+            const shouldLand = distToHome < 40 && plane.position.y < 22 && state.speed < 60 && state.throttle.value < 0.2 && state.hasTakenOff && state.takeoffImmunity <= 0;
+            if (shouldLand) {
+                state.flightStatus = 'landing';
+                document.getElementById('flight-status').textContent = '返航中';
+            }
+            break;
+        }
+            
+        case 'landing': {
+            // 自动减速
+            state.speed *= 0.92;
+            
+            // 平滑对准甲板（不再生硬瞬移）
+            const homePos = home.position.clone();
+            homePos.y = 15.5;
+            
+            // 改平姿态
+            const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+            const targetQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, currentEuler.y, 0, 'YXZ'));
+            plane.quaternion.slerp(targetQuat, 0.1);
+            
+            // 水平位置平滑靠近
+            plane.position.x += (homePos.x - plane.position.x) * 0.04;
+            plane.position.z += (homePos.z - plane.position.z) * 0.04;
+            
+            // 高度下降
+            if (plane.position.y > 16) {
+                plane.position.y += (homePos.y - plane.position.y) * 0.08;
+            }
+            
+            // 着陆判定
+            if ((state.speed < 30 && onDeck) || (onDeck && plane.position.y < 17)) {
+                plane.position.y = 15.5;
+                state.flightStatus = 'ground';
+                state.speed = 0;
+                state.throttle.value = 0;
+                document.getElementById('throttle-fill').style.height = '0%';
+                document.getElementById('throttle-knob').style.bottom = '0px';
+                document.getElementById('flight-status').textContent = '甲板待命';
+                
+                if (state.hasTakenOff) {
+                    if (state.bombs <= 0 || state.cannonAmmo <= 0) {
+                        startResupply();
+                    } else {
+                        showMessage("降落成功！\n推油门再次起飞");
+                    }
+                }
+            }
+            break;
+        }
+            
+        case 'resupply':
+            break;
+    }
+    
+    document.getElementById('dist-home').textContent = Math.floor(distToHome);
+    
+    // ===== 碰撞检测 =====
+    if (state.flightStatus === 'flying' || state.flightStatus === 'takeoff') {
+        const col = checkCollision(plane.position);
+        if (col.hit) {
+            if (col.type === 'water') {
+                gameOver("坠海！", "撞击海面");
+            } else if (col.type === 'home') {
+                state.speed *= 0.7;
+                if (state.speed > 150) {
+                    gameOver("撞击企业号！", col.reason);
+                }
+            } else if (col.type === 'carrier') {
+                gameOver(col.reason, `撞击: ${col.type}`);
+            }
+        }
+    }
+    
+    // ===== 相机跟随 =====
+    updateCamera();
+    
+    // ===== 螺旋桨旋转 =====
+    plane.children.forEach(c => {
+        if (c.userData.isProp) c.rotation.z += 0.5;
+    });
+    
+    // ===== 更新罗盘方向 =====
+    updateCompass();
+}
+
+function updateCompass() {
+    const plane = state.plane;
+    const euler = new THREE.Euler().setFromQuaternion(plane.quaternion, 'YXZ');
+    let heading = -euler.y * (180 / Math.PI);
+    heading = (heading + 360) % 360;
+    
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const index = Math.round(heading / 45) % 8;
+    const dir = directions[index];
+    
+    document.getElementById('compass').textContent = `${dir} ${Math.round(heading)}°`;
+}
+
+function startResupply() {
+    state.flightStatus = 'resupply';
+    state.resupplyTime = state.resupplyMaxTime;
+    document.getElementById('flight-status').textContent = '补给中';
+    document.getElementById('resupply-timer').classList.remove('hidden');
+    
+    const timer = setInterval(() => {
+        state.resupplyTime--;
+        document.getElementById('timer').textContent = state.resupplyTime;
+        
+        if (state.resupplyTime <= 0) {
+            clearInterval(timer);
+            state.bombs = state.maxBombs;
+            state.cannonAmmo = state.maxCannonAmmo;
+            state.health = Math.min(100, state.health + 30);
+            document.getElementById('bombs').textContent = state.bombs;
+            document.getElementById('cannon').textContent = state.cannonAmmo;
+            document.getElementById('resupply-timer').classList.add('hidden');
+            document.getElementById('flight-status').textContent = '甲板待命';
+            state.flightStatus = 'ground';
+            
+            state.plane.children.forEach(c => {
+                if (c.userData.isBomb) c.visible = true;
+            });
+            
+            showMessage("补给完成！\n推油门起飞");
+        }
+    }, 1000);
+}
+
+function checkCollision(pos) {
+    if (pos.y < 0) {
+        return { hit: true, type: 'water', reason: '坠海坠毁' };
+    }
+    
+    for (const carrier of state.carriers) {
+        const local = pos.clone().sub(carrier.position);
+        local.applyAxisAngle(new THREE.Vector3(0, 1, 0), -carrier.rotation.y);
+        
+        if (Math.abs(local.x) < 20 && Math.abs(local.z) < 130 && local.y < 13 && local.y > 0) {
+            return { hit: true, type: 'carrier', reason: '撞击航母' };
+        }
+    }
+    
+    if (state.homeCarrier) {
+        const local = pos.clone().sub(state.homeCarrier.position);
+        local.applyAxisAngle(new THREE.Vector3(0, 1, 0), -state.homeCarrier.rotation.y);
+        
+        if (Math.abs(local.x) < 20 && Math.abs(local.z) < 140 && local.y < 20 && local.y > 8) {
+            return { hit: true, type: 'home', reason: '撞击企业号' };
+        }
+    }
+    
+    return { hit: false };
+}
+
+function updateCamera() {
+    const plane = state.plane;
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(plane.quaternion);
+    
+    let camOffset;
+    if (state.flightStatus === 'ground') {
+        camOffset = new THREE.Vector3(15, 8, 25);
+    } else {
+        camOffset = new THREE.Vector3(0, 12, 28);
+    }
+    
+    camOffset.applyQuaternion(plane.quaternion);
+    const targetPos = plane.position.clone().add(camOffset);
+    
+    camera.position.lerp(targetPos, 0.1);
+    camera.lookAt(plane.position.clone().add(forward.multiplyScalar(50)));
+}
+
+// ========== AI更新 ==========
+function updateAI() {
+    const dt = 0.016;
+    
+    state.allies.forEach(ally => {
+        if (!ally.parent) return;
+        const data = ally.userData;
+        
+        if (data.type === 'dauntless') {
+            if (data.state === 'approach') {
+                const target = data.targetCarrier;
+                if (!target || target.userData.health <= 0) {
+                    data.targetCarrier = state.carriers.find(c => c.userData.health > 0) || state.carriers[0];
+                    return;
+                }
+                
+                const toTarget = target.position.clone().sub(ally.position);
+                const dist = toTarget.length();
+                
+                const targetDir = toTarget.normalize();
+                const targetQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,-1), targetDir);
+                ally.quaternion.slerp(targetQuat, 0.03);
+                
+                if (dist > 300) {
+                    ally.position.y = Math.max(ally.position.y, 150);
+                } else if (dist < 200 && ally.position.y > 80) {
+                    const euler = new THREE.Euler().setFromQuaternion(ally.quaternion, 'YXZ');
+                    // 俯冲需要低头（euler.x为负）
+                    if (euler.x > -Math.PI / 3) {
+                        ally.rotateX(-0.02); // 负旋转低头
+                    }
+                    data.speed = 600;
+                }
+                
+                if (dist < 150 && ally.position.y < 100 && Date.now() - data.lastBomb > 3000 && data.hasBomb) {
+                    const bombPos = ally.position.clone();
+                    bombPos.y -= 2;
+                    const bomb = createBomb(bombPos, new THREE.Vector3(0, -5, 0));
+                    state.bullets.push(bomb);
+                    data.lastBomb = Date.now();
+                    data.hasBomb = false;
+                    data.state = 'pullup';
+                }
+                
+                ally.position.add(targetDir.multiplyScalar(data.speed * dt * 0.1));
+                
+            } else if (data.state === 'pullup') {
+                const euler = new THREE.Euler().setFromQuaternion(ally.quaternion, 'YXZ');
+                // pullup：从低头改平（euler.x从负值回到0）
+                if (euler.x < -0.1) {
+                    ally.rotateX(0.03); // 正旋转抬头
+                }
+                data.speed = 350;
+                
+                const up = new THREE.Vector3(0, 1, 0);
+                ally.position.add(up.multiplyScalar(60 * dt));
+                
+                if (euler.x >= -0.1 && ally.position.y > 200) {
+                    data.state = 'return';
+                }
+            } else if (data.state === 'return') {
+                const toHome = state.homeCarrier.position.clone().sub(ally.position);
+                toHome.y = 0;
+                const dir = toHome.normalize();
+                const targetQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,-1), dir);
+                ally.quaternion.slerp(targetQuat, 0.03);
+                ally.position.add(dir.multiplyScalar(300 * dt * 0.1));
+                
+                if (toHome.length() < 400) {
+                    data.hasBomb = true;
+                    data.state = 'approach';
+                    data.targetCarrier = state.carriers[Math.floor(Math.random() * state.carriers.length)];
+                }
+            }
+        } else if (data.type === 'mustang') {
+            if (!data.target || !data.target.parent) {
+                let nearest = null, minDist = Infinity;
+                state.enemies.forEach(e => {
+                    const d = ally.position.distanceTo(e.position);
+                    if (d < minDist) { minDist = d; nearest = e; }
+                });
+                data.target = nearest;
+            }
+            
+            if (data.target) {
+                const toEnemy = data.target.position.clone().sub(ally.position);
+                const dist = toEnemy.length();
+                
+                if (dist > 50) {
+                    const dir = toEnemy.normalize();
+                    const targetQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,-1), dir);
+                    ally.quaternion.slerp(targetQuat, 0.04);
+                    ally.position.add(dir.multiplyScalar(data.speed * dt * 0.1));
+                }
+                
+                if (dist < 200 && Math.random() < 0.05) {
+                    const shootDir = new THREE.Vector3(0, 0, -1).applyQuaternion(ally.quaternion);
+                    state.bullets.push(createBullet(
+                        ally.position.clone().add(new THREE.Vector3(0, 0, -3).applyQuaternion(ally.quaternion)),
+                        shootDir
+                    ));
+                }
+            }
+        }
+        
+        ally.children.forEach(c => {
+            if (c.userData.isProp) c.rotation.z += 0.5;
+        });
+    });
+    
+    state.enemies.forEach((enemy, idx) => {
+        if (!enemy.parent) return;
+        const data = enemy.userData;
+        
+        const toPlayer = state.plane.position.clone().sub(enemy.position);
+        const distToPlayer = toPlayer.length();
+        
+        let target = state.plane;
+        let targetDist = distToPlayer;
+        
+        state.allies.forEach(ally => {
+            if (ally.userData.type === 'dauntless' && ally.parent) {
+                const d = enemy.position.distanceTo(ally.position);
+                if (d < targetDist) { target = ally; targetDist = d; }
+            }
+        });
+        
+        const toTarget = target.position.clone().sub(enemy.position);
+        
+        if (targetDist > 30) {
+            const dir = toTarget.normalize();
+            const targetQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,-1), dir);
+            enemy.quaternion.slerp(targetQuat, 0.04);
+            enemy.position.add(dir.multiplyScalar(data.speed * dt * 0.1));
+        }
+        
+        if (targetDist < 150 && Math.random() < 0.03) {
+            const shootDir = new THREE.Vector3(0, 0, -1).applyQuaternion(enemy.quaternion);
+            state.enemyBullets.push(createBullet(
+                enemy.position.clone().add(new THREE.Vector3(0, 0, -3).applyQuaternion(enemy.quaternion)),
+                shootDir, true
+            ));
+        }
+        
+        enemy.children.forEach(c => {
+            if (c.userData.isProp) c.rotation.z += 0.6;
+        });
+    });
+}
+
+// ========== 防空炮火 ==========
+function updateAAFire() {
+    state.carriers.forEach(carrier => {
+        if (carrier.userData.health <= 0) return;
+        
+        const targets = [state.plane, ...state.allies].filter(t => t && t.parent && (t !== state.plane || state.flightStatus === 'flying'));
+        
+        targets.forEach(target => {
+            if (target === state.plane && state.flightStatus !== 'flying') return;
+            
+            const dist = carrier.position.distanceTo(target.position);
+            if (dist < 400 && Math.random() < 0.06) {
+                const aaGuns = [];
+                carrier.children.forEach(c => {
+                    if (c.userData.isBarrel) {
+                        const worldPos = new THREE.Vector3();
+                        c.getWorldPosition(worldPos);
+                        aaGuns.push(worldPos);
+                    }
+                });
+                
+                if (aaGuns.length > 0) {
+                    const gun = aaGuns[Math.floor(Math.random() * aaGuns.length)];
+                    const flak = createFlak(gun, target.position);
+                    state.flak.push(flak);
+                }
+            }
+        });
+    });
+}
+
+// ========== 子弹更新 ==========
+function updateBullets() {
+    const dt = 0.016;
+    
+    for (let i = state.bullets.length-1; i>=0; i--) {
+        const b = state.bullets[i];
+        
+        if (b.userData.type === 'bomb') {
+            b.userData.velocity.y -= 9.8 * dt;
+            b.position.add(b.userData.velocity);
+            b.rotation.x += 0.1;
+            
+            let hit = false;
+            state.carriers.forEach((carrier, cidx) => {
+                if (carrier.userData.health <= 0) return;
+                
+                const local = b.position.clone().sub(carrier.position);
+                local.applyAxisAngle(new THREE.Vector3(0, 1, 0), -carrier.rotation.y);
+                
+                if (Math.abs(local.x) < 20 && Math.abs(local.z) < 130 && local.y < 15 && local.y > 0) {
+                    hit = true;
+                    carrier.userData.health -= 80;
+                    
+                    const hpPercent = Math.max(0, Math.floor(carrier.userData.health / carrier.userData.maxHealth * 100));
+                    const hpEl = document.getElementById(`carrier-hp-${cidx}`);
+                    const barEl = document.getElementById(`carrier-${cidx}`);
+                    if (hpEl) hpEl.textContent = hpPercent + '%';
+                    
+                    if (carrier.userData.health <= 0) {
+                        state.sunkCarriers++;
+                        document.getElementById('sunk').textContent = state.sunkCarriers;
+                        if (barEl) barEl.classList.add('destroyed');
+                        showMessage(`${carrier.userData.name} 被击沉！`);
+                        createExplosion(carrier.position, 3, 0xff0000);
+                        createExplosion(carrier.position.clone().add(new THREE.Vector3(0, 20, 0)), 2, 0xff4400);
+                        carrier.userData.sinking = true;
+                    } else {
+                        createExplosion(b.position, 1.5, 0xff6600);
+                        showMessage(`命中 ${carrier.userData.name}！`);
+                    }
+                }
+            });
+            
+            if (hit || b.position.y < 0) {
+                if (!hit && b.position.y < 0) createSplash(b.position);
+                scene.remove(b);
+                state.bullets.splice(i, 1);
+                continue;
+            }
+            
+            if (b.position.y < -10) {
+                scene.remove(b);
+                state.bullets.splice(i, 1);
+            }
+        } else if (b.userData.type === 'cannon') {
+            b.position.add(b.userData.velocity);
+            b.userData.life--;
+            
+            if (b.position.distanceTo(state.plane.position) > 1000 || b.userData.life <= 0 || b.position.y < 0) {
+                scene.remove(b);
+                state.bullets.splice(i, 1);
+                continue;
+            }
+            
+            let hit = false;
+            
+            for (let j = state.enemies.length-1; j>=0; j--) {
+                const e = state.enemies[j];
+                if (b.position.distanceTo(e.position) < 5) {
+                    e.userData.health -= 8;
+                    
+                    const spark = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.5),
+                        new THREE.MeshBasicMaterial({ color: 0xffaa00, emissive: 0xffaa00 })
+                    );
+                    spark.position.copy(b.position);
+                    scene.add(spark);
+                    setTimeout(() => scene.remove(spark), 100);
+                    
+                    if (e.userData.health <= 0) {
+                        createExplosion(e.position, 1.2, 0xff0000);
+                        scene.remove(e);
+                        state.enemies.splice(j, 1);
+                        state.score += 50;
+                        showMessage("击落零式战斗机！");
+                    }
+                    hit = true;
+                    break;
+                }
+            }
+            
+            if (!hit) {
+                for (const carrier of state.carriers) {
+                    if (carrier.userData.health <= 0) continue;
+                    const local = b.position.clone().sub(carrier.position);
+                    local.applyAxisAngle(new THREE.Vector3(0,1,0), -carrier.rotation.y);
+                    
+                    if (Math.abs(local.x) < 20 && Math.abs(local.z) < 130 && local.y < 15 && local.y > 0) {
+                        carrier.userData.health -= 1;
+                        hit = true;
+                        
+                        const spark = new THREE.Mesh(
+                            new THREE.SphereGeometry(0.4),
+                            new THREE.MeshBasicMaterial({ color: 0xff6600, emissive: 0xff6600 })
+                        );
+                        spark.position.copy(b.position);
+                        scene.add(spark);
+                        setTimeout(() => scene.remove(spark), 150);
+                        
+                        const cidx = state.carriers.indexOf(carrier);
+                        const hpPercent = Math.max(0, Math.floor(carrier.userData.health / carrier.userData.maxHealth * 100));
+                        const hpEl = document.getElementById(`carrier-hp-${cidx}`);
+                        const barEl = document.getElementById(`carrier-${cidx}`);
+                        if (hpEl) hpEl.textContent = hpPercent + '%';
+                        
+                        if (carrier.userData.health <= 0) {
+                            state.sunkCarriers++;
+                            document.getElementById('sunk').textContent = state.sunkCarriers;
+                            if (barEl) barEl.classList.add('destroyed');
+                            showMessage(`${carrier.userData.name} 被击沉！`);
+                            createExplosion(carrier.position, 3, 0xff0000);
+                            carrier.userData.sinking = true;
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            if (hit) {
+                scene.remove(b);
+                state.bullets.splice(i, 1);
+            }
+        } else {
+            b.position.add(b.userData.velocity);
+            b.userData.life--;
+            
+            for (let j = state.enemies.length-1; j>=0; j--) {
+                const e = state.enemies[j];
+                if (b.position.distanceTo(e.position) < 4) {
+                    e.userData.health -= 25;
+                    createExplosion(b.position, 0.5, 0xffaa00);
+                    
+                    if (e.userData.health <= 0) {
+                        createExplosion(e.position, 1, 0xff0000);
+                        scene.remove(e);
+                        state.enemies.splice(j, 1);
+                        state.score += 50;
+                    }
+                    scene.remove(b);
+                    state.bullets.splice(i, 1);
+                    break;
+                }
+            }
+            
+            if (b.userData.life <= 0) {
+                scene.remove(b);
+                state.bullets.splice(i, 1);
+            }
+        }
+    }
+    
+    for (let i = state.enemyBullets.length-1; i>=0; i--) {
+        const b = state.enemyBullets[i];
+        b.position.add(b.userData.velocity);
+        b.userData.life--;
+        
+        if (b.position.distanceTo(state.plane.position) < 4 && state.flightStatus === 'flying') {
+            state.health -= 8;
+            document.getElementById('damage').style.opacity = '1';
+            setTimeout(() => document.getElementById('damage').style.opacity = '0', 200);
+            createExplosion(b.position, 0.5, 0xff0000);
+            scene.remove(b);
+            state.enemyBullets.splice(i, 1);
+            
+            if (state.health <= 0) {
+                gameOver("被击落！", "装甲耗尽");
+            }
+            continue;
+        }
+        
+        for (let j = state.allies.length-1; j>=0; j--) {
+            const ally = state.allies[j];
+            if (ally.parent && b.position.distanceTo(ally.position) < 4) {
+                ally.userData.health -= 15;
+                createExplosion(b.position, 0.3, 0xffaa00);
+                scene.remove(b);
+                state.enemyBullets.splice(i, 1);
+                
+                if (ally.userData.health <= 0) {
+                    createExplosion(ally.position, 1, 0xff4400);
+                    scene.remove(ally);
+                    state.allies.splice(j, 1);
+                }
+                break;
+            }
+        }
+        
+        if (b.userData.life <= 0) {
+            scene.remove(b);
+            state.enemyBullets.splice(i, 1);
+        }
+    }
+    
+    for (let i = state.flak.length-1; i>=0; i--) {
+        const f = state.flak[i];
+        f.position.add(f.userData.velocity);
+        f.userData.life--;
+        
+        const targets = [state.plane, ...state.allies].filter(t => t && t.parent);
+        for (const target of targets) {
+            if (target === state.plane && state.flightStatus !== 'flying') continue;
+            
+            if (f.position.distanceTo(target.position) < 6) {
+                if (target === state.plane) {
+                    state.health -= 5;
+                    document.getElementById('damage').style.opacity = '0.6';
+                    setTimeout(() => document.getElementById('damage').style.opacity = '0', 150);
+                } else {
+                    target.userData.health -= 10;
+                    if (target.userData.health <= 0) {
+                        createExplosion(target.position, 1, 0xff4400);
+                        scene.remove(target);
+                        const idx = state.allies.indexOf(target);
+                        if (idx > -1) state.allies.splice(idx, 1);
+                    }
+                }
+                createExplosion(f.position, 0.8, 0xffff00);
+                scene.remove(f);
+                state.flak.splice(i, 1);
+                
+                if (state.health <= 0) {
+                    gameOver("被防空炮火击落！", "装甲耗尽");
+                }
+                break;
+            }
+        }
+        
+        if (f.userData.life <= 0) {
+            createExplosion(f.position, 0.6, 0xffffaa);
+            scene.remove(f);
+            state.flak.splice(i, 1);
+        }
+    }
+}
+
+function updateParticles() {
+    for (let i = state.particles.length-1; i>=0; i--) {
+        const p = state.particles[i];
+        
+        if (p.userData.grow) {
+            p.scale.multiplyScalar(1.02);
+            p.material.opacity *= 0.98;
+        } else if (p.userData.rotationSpeed) {
+            p.rotation.x += p.userData.rotationSpeed.x;
+            p.rotation.y += p.userData.rotationSpeed.y;
+            p.rotation.z += p.userData.rotationSpeed.z;
+        }
+        
+        if (p.userData.gravity) {
+            p.userData.velocity.y -= 0.3;
+        }
+        
+        if (p.userData.velocity) {
+            p.position.add(p.userData.velocity.clone().multiplyScalar(0.1));
+        }
+        
+        if (p.userData.maxLife) {
+            const ratio = p.userData.life / p.userData.maxLife;
+            p.scale.setScalar(ratio * p.userData.scale * 3);
+            p.material.opacity = ratio * 0.8;
+        }
+        
+        p.userData.life--;
+        
+        if (p.userData.life <= 0) {
+            scene.remove(p);
+            state.particles.splice(i, 1);
+        }
+    }
+}
+
+function updateCarriers() {
+    state.carriers.forEach(carrier => {
+        if (carrier.userData.sinking && carrier.position.y > -30) {
+            carrier.position.y -= 0.3;
+            carrier.rotation.x += 0.002;
+            carrier.rotation.z += 0.001;
+        }
+    });
+}
+
+function updateRadar() {
+    const radar = document.getElementById('radar-blips');
+    radar.innerHTML = '';
+    
+    if (state.homeCarrier) {
+        const rel = state.homeCarrier.position.clone().sub(state.plane.position);
+        rel.applyAxisAngle(new THREE.Vector3(0,1,0), -state.plane.rotation.y);
+        const x = (rel.x/2000)*70 + 80;
+        const z = (rel.z/2000)*70 + 80;
+        if (x>5 && x<<155 && z>5 && z<<155) {
+            const blip = document.createElement('div');
+            blip.className = 'radar-blip radar-home';
+            blip.style.left = x+'px'; blip.style.top = z+'px';
+            radar.appendChild(blip);
+        }
+    }
+    
+    state.carriers.forEach(c => {
+        if (c.userData.health <= 0) return;
+        const rel = c.position.clone().sub(state.plane.position);
+        rel.applyAxisAngle(new THREE.Vector3(0,1,0), -state.plane.rotation.y);
+        const x = (rel.x/2000)*70 + 80;
+        const z = (rel.z/2000)*70 + 80;
+        if (x>5 && x<<155 && z>5 && z<<155) {
+            const blip = document.createElement('div');
+            blip.className = 'radar-blip radar-carrier';
+            blip.style.left = x+'px'; blip.style.top = z+'px';
+            radar.appendChild(blip);
+        }
+    });
+    
+    state.enemies.forEach(e => {
+        const rel = e.position.clone().sub(state.plane.position);
+        rel.applyAxisAngle(new THREE.Vector3(0,1,0), -state.plane.rotation.y);
+        const x = (rel.x/1000)*70 + 80;
+        const z = (rel.z/1000)*70 + 80;
+        if (x>5 && x<<155 && z>5 && z<<155) {
+            const blip = document.createElement('div');
+            blip.className = 'radar-blip';
+            blip.style.left = x+'px'; blip.style.top = z+'px';
+            radar.appendChild(blip);
+        }
+    });
+    
+    state.allies.forEach(a => {
+        if (!a.parent) return;
+        const rel = a.position.clone().sub(state.plane.position);
+        rel.applyAxisAngle(new THREE.Vector3(0,1,0), -state.plane.rotation.y);
+        const x = (rel.x/800)*70 + 80;
+        const z = (rel.z/800)*70 + 80;
+        if (x>5 && x<<155 && z>5 && z<<155) {
+            const blip = document.createElement('div');
+            blip.className = 'radar-blip radar-ally';
+            blip.style.left = x+'px'; blip.style.top = z+'px';
+            radar.appendChild(blip);
+        }
+    });
+    
+    const dirEl = document.getElementById('radar-direction');
+    const euler = new THREE.Euler().setFromQuaternion(state.plane.quaternion, 'YXZ');
+    const heading = -euler.y * (180 / Math.PI);
+    dirEl.style.transform = `translate(-50%, -100%) rotate(${heading}deg)`;
+}
+
+function updateUI() {
+    document.getElementById('speed').textContent = Math.floor(state.speed);
+    document.getElementById('altitude').textContent = Math.floor(state.plane.position.y);
+    document.getElementById('health').textContent = Math.max(0, state.health);
+    document.getElementById('enemies').textContent = state.enemies.length;
+    document.getElementById('bombs').textContent = state.bombs;
+    document.getElementById('cannon').textContent = state.cannonAmmo;
+    document.getElementById('sunk').textContent = state.sunkCarriers;
+    
+    const hi = document.getElementById('health-indicator');
+    if (state.health > 60) hi.className = 'w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50';
+    else if (state.health > 30) hi.className = 'w-3 h-3 rounded-full bg-yellow-500 shadow-lg shadow-yellow-500/50';
+    else hi.className = 'w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50 animate-pulse';
+    
+    if (state.sunkCarriers >= 4 && !state.crashed) {
+        gameOver("胜利！", "四艘日本航母全部被击沉！\n中途岛海战大获全胜！");
+        document.getElementById('gameover-title').textContent = "胜利！";
+        document.getElementById('gameover-title').className = "text-6xl font-bold text-yellow-400 mb-4";
+    }
+}
+
+function gameOver(reason, detail) {
+    if (state.crashed) return;
+    state.crashed = true;
+    state.playing = false;
+    if (window.CYB && CYB.scores) {
+        if (reason === '胜利！') CYB.scores.addWin('midway'); else CYB.scores.addLoss('midway');
+    }
+    
+    state.cannonFiring = false;
+    if (state.cannonFireInterval) {
+        clearInterval(state.cannonFireInterval);
+        state.cannonFireInterval = null;
+    }
+    
+    if (reason !== "胜利！") {
+        createExplosion(state.plane.position, 2, 0xff0000);
+        if (state.plane.parent) scene.remove(state.plane);
+    }
+    
+    document.getElementById('ui-layer').classList.add('hidden');
+    document.getElementById('control-layer').classList.add('hidden');
+    document.getElementById('gameover').classList.remove('hidden');
+    document.getElementById('gameover-reason').textContent = reason;
+    document.getElementById('gameover-detail').textContent = detail;
+    document.getElementById('gameover-stats').innerHTML = 
+        `击沉航母: ${state.sunkCarriers}/4 | 击落零式: ${Math.floor(state.score/50)} | 剩余装甲: ${Math.max(0, state.health)}%`;
+}
+
+function showMessage(text) {
+    const msg = document.getElementById('message');
+    msg.innerHTML = text.replace(/\n/g, '<br>');
+    msg.classList.remove('hidden');
+    setTimeout(() => msg.classList.add('hidden'), 3000);
+}
+
+// ========== 游戏开始 ==========
+function startGame(mode) {
+    state.mode = mode;
+    state.playing = true;
+    state.speed = 0;
+    state.health = 100;
+    state.score = 0;
+    state.bombs = 20;
+    state.maxBombs = 20;
+    state.cannonAmmo = 1800;
+    state.maxCannonAmmo = 1800;
+    state.sunkCarriers = 0;
+    state.isDiving = false;
+    state.flightStatus = 'ground';
+    state.hasTakenOff = false;
+    state.resupplyTime = 0;
+    state.resupplyMaxTime = 10;
+    state.enemies = [];
+    state.allies = [];
+    state.bullets = [];
+    state.enemyBullets = [];
+    state.flak = [];
+    state.particles = [];
+    state.carriers = [];
+    state.crashed = false;
+    state.time = 0;
+    state.lastCannon = 0;
+    state.cannonFiring = false;
+    state.takeoffImmunity = 0;
+    if (state.cannonFireInterval) {
+        clearInterval(state.cannonFireInterval);
+        state.cannonFireInterval = null;
+    }
+    
+    document.getElementById('menu').classList.add('hidden');
+    document.getElementById('ui-layer').classList.remove('hidden');
+    document.getElementById('control-layer').classList.remove('hidden');
+    document.getElementById('mode-text').textContent = '中途岛海战';
+    document.getElementById('mode-text').className = 'text-red-500 font-bold text-xl';
+    document.getElementById('flight-status').textContent = '甲板待命';
+    document.getElementById('resupply-timer').classList.add('hidden');
+    
+    state.throttle.value = 0;
+    document.getElementById('throttle-fill').style.height = '0%';
+    document.getElementById('throttle-knob').style.bottom = '0px';
+    
+    if (state.homeCarrier) scene.remove(state.homeCarrier);
+    state.homeCarrier = createEnterprise();
+    scene.add(state.homeCarrier);
+    
+    const carrierData = [
+        { dist: 1200, angle: Math.PI * 0.3, name: '赤城' },
+        { dist: 1400, angle: Math.PI * 0.35, name: '加贺' },
+        { dist: 1300, angle: Math.PI * 0.25, name: '苍龙' },
+        { dist: 1500, angle: Math.PI * 0.4, name: '飞龙' }
+    ];
+    
+    const healthContainer = document.getElementById('carrier-health');
+    healthContainer.innerHTML = '';
+    
+    carrierData.forEach((data, i) => {
+        const x = Math.cos(data.angle) * data.dist;
+        const z = Math.sin(data.angle) * data.dist;
+        const carrier = createCarrier(data.name, x, z);
+        carrier.rotation.y = -data.angle + Math.PI / 2 + (Math.random() - 0.5) * 0.5;
+        scene.add(carrier);
+        state.carriers.push(carrier);
+        
+        const bar = document.createElement('div');
+        bar.className = 'carrier-bar';
+        bar.id = `carrier-${i}`;
+        bar.innerHTML = `
+            <div class="carrier-name">${data.name}</div>
+            <div class="carrier-hp" id="carrier-hp-${i}">100%</div>
+        `;
+        healthContainer.appendChild(bar);
+    });
+    
+    if (state.plane) scene.remove(state.plane);
+    state.plane = createDauntless(true);
+    state.plane.position.set(0, 15.5, 80);
+    state.plane.rotation.set(0, 0, 0);
+    scene.add(state.plane);
+    
+    for (let i = 0; i < 3; i++) {
+        const ally = createDauntless(false);
+        ally.position.set((i-1)*25, 15.5, 60 + i*20);
+        ally.rotation.set(0, 0, 0);
+        ally.userData = {
+            type: 'dauntless',
+            targetCarrier: state.carriers[i % 4],
+            state: 'approach',
+            speed: 300,
+            lastBomb: 0,
+            health: 100,
+            hasBomb: true
+        };
+        scene.add(ally);
+        state.allies.push(ally);
+    }
+    
+    for (let i = 0; i < 2; i++) {
+        const ally = createMustang();
+        ally.position.set((i-0.5)*40, 15.5, 40);
+        ally.rotation.set(0, 0, 0);
+        ally.userData = {
+            type: 'mustang',
+            target: null,
+            state: 'escort',
+            speed: 400,
+            health: 100
+        };
+        scene.add(ally);
+        state.allies.push(ally);
+    }
+    
+    for (let i = 0; i < 6; i++) {
+        const enemy = createZero();
+        const carrier = state.carriers[i % 4];
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 200 + Math.random() * 300;
+        enemy.position.set(
+            carrier.position.x + Math.cos(angle) * dist,
+            150 + Math.random() * 100,
+            carrier.position.z + Math.sin(angle) * dist
+        );
+        enemy.userData = {
+            speed: 350 + Math.random()*100,
+            health: 80,
+            target: null,
+            lastShot: 0,
+            state: 'patrol'
+        };
+        scene.add(enemy);
+        state.enemies.push(enemy);
+    }
+    
+    setupTouchControls();
+    animate();
+    showMessage("企业号甲板待命\n推油门，摇杆上拉抬头起飞！");
+}
+
+function animate() {
+    if (!state.playing) return;
+    requestAnimationFrame(animate);
+    state.time += 0.016;
+    
+    updateWater(state.time);
+    updateFlightPhysics();
+    updateAI();
+    updateAAFire();
+    updateBullets();
+    updateParticles();
+    updateCarriers();
+    updateRadar();
+    updateUI();
+    
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+renderer.render(scene, camera);
+</script>
+</body>
+</html>
