@@ -89,6 +89,19 @@
   #swingBtn.hot{background:#ffd85e;border-color:#fff2b8;color:#141a33}
   body[data-mode="1"] #joyL,body[data-mode="1"] #joyR{display:block}
   body[data-mode="2"] #swingBtn{display:flex}
+  #swingBtn2{position:absolute;left:calc(var(--cl,10px) + env(safe-area-inset-left));
+    bottom:calc(var(--cb,10px) + env(safe-area-inset-bottom));
+    width:var(--joyb,96px);height:var(--joyb,96px);border-radius:50%;
+    font:inherit;color:#2a1030;background:#ff8fb1;border:3px solid #ffd0e0;
+    box-shadow:4px 4px 0 rgba(0,0,0,.6);flex-direction:column;align-items:center;
+    justify-content:center;gap:.06em;cursor:pointer;touch-action:none;display:none}
+  #swingBtn2 b{font-size:calc(var(--joyb,96px)*.20);letter-spacing:.1em;line-height:1.1}
+  #swingBtn2 small{font-size:calc(var(--joyb,96px)*.105);letter-spacing:.16em;opacity:.75}
+  body[data-two="1"][data-mode="2"] #swingBtn2{display:flex}
+  /* 双人时，每个挥拍键放在自己那半边，别让两人去够对面 */
+  body[data-two="1"][data-mine="L"] #swingBtn{left:calc(var(--cl,10px) + env(safe-area-inset-left));right:auto}
+  body[data-two="1"][data-mine="L"] #swingBtn2{right:calc(var(--crb,10px) + env(safe-area-inset-right));left:auto}
+  body[data-two="1"][data-mine="R"] #swingBtn2{left:calc(var(--cl,10px) + env(safe-area-inset-left));right:auto}
   body[data-screen="menu"] #ctrl > *{display:none}
   /* 横屏时控件压在画面上，进一步降低存在感，少挡球场 */
   body[data-orient="landscape"] .joy{background:rgba(14,20,44,.26);
@@ -185,7 +198,8 @@
   <div id="ctrl">
     <div class="joy" id="joyL"><div class="knob"></div><span>移动</span></div>
     <div class="joy" id="joyR"><div class="knob"></div><span>挥拍</span></div>
-    <button id="swingBtn"><b>挥拍</b><small>SWING</small></button>
+    <button id="swingBtn"><b>挥拍</b><small>P1</small></button>
+    <button id="swingBtn2"><b>挥拍</b><small>P2</small></button>
   </div>
 
   <div id="menu" class="panel">
@@ -207,6 +221,13 @@
       </div>
     </div>
     <div class="row">
+      <div class="label">对战方式</div>
+      <div class="opts">
+        <button class="opt sel" data-two="0">单人 · 对 AI</button>
+        <button class="opt" data-two="1">双人同屏</button>
+      </div>
+    </div>
+    <div class="row">
       <div class="label">上场人数</div>
       <div class="opts">
         <button class="opt sel" data-format="1">1 V 1</button>
@@ -214,7 +235,7 @@
         <button class="opt" data-format="4">4 V 4</button>
       </div>
     </div>
-    <div class="row">
+    <div class="row" id="humanRow">
       <div class="label">我方真人 <span class="en">其余位置由人机队友补上</span></div>
       <div class="opts" id="humanOpts">
         <button class="opt sel" data-humans="1">1 人</button>
@@ -558,6 +579,8 @@ function makeActor(home, slot, isHuman){
     by: 0, vyB: 0, jumpCd: 0, landT: 0, jumpH: 0, jumpHold: 0, // 跳跃相关
     leanX: 0, leanY: 0,                                        // 跨步 / 探身 / 踮脚
     plan: null, think: 0, seen: null,                          // 每个 AI 自己的计划状态
+    inp: makeInp(x),                                           // 这位球员自己的输入
+    vbuf: [], pyHist: [], pyTick: 0, gestCache: { type:null, t:-9 },
   };
 }
 
@@ -571,7 +594,8 @@ const G = {
   state: 'menu',            // menu | serve | play | point | over
   playerHome: 'L',
   format: 1,                // 每边上场人数：1 / 2 / 4
-  humans: 1,                // 我方真人数量（1..format）；对方固定人机
+  humans: 1,                // 我方真人数量（1..format）
+  twoPlayer: false,         // true = 同屏双人：对方 0 号位也是真人
   level: 1,
   hangTime: true,           // 主页开关：球过网飞向玩家时放慢时间
   mode: 0,                  // 0=拖拽 1=摇杆 2=时机（自动跑位+按键时机）
@@ -599,21 +623,46 @@ function buildTeams(){
   TEAM = { L: [], R: [] };
   for(let i = 0; i < G.format; i++){
     TEAM[mine].push(makeActor(mine, i, i < G.humans));
-    TEAM[foe ].push(makeActor(foe,  i, false));
+    TEAM[foe ].push(makeActor(foe,  i, G.twoPlayer && i === 0));
   }
   P = TEAM[mine][0];
   A = TEAM[foe][0];
+  HUMAN = { L: null, R: null };
+  for(const k of ['L', 'R']) HUMAN[k] = (TEAM[k] || []).find(a => a.isHuman) || null;
+  if(document.body){
+    document.body.dataset.two = G.twoPlayer ? '1' : '0';
+    document.body.dataset.mine = G.playerHome;
+  }
 }
-buildTeams();          // 菜单阶段也要有球员站在场上
 
 /* ============================================================
    输入
    ============================================================ */
-const input = { px:150, py:190, down:false, active:false, keys:{} };
+/* 每位真人一份输入状态（同屏双人时，左右半场各归一个人） */
+function makeInp(x){
+  return { px:x, py:190, down:false, active:false, hist:[], swing:false, buf:0 };
+}
+function inpVel(inp){
+  const h = inp.hist;
+  if(h.length < 2) return { x:0, y:0 };
+  const a0 = h[0], a1 = h[h.length - 1];
+  const dt = Math.max(0.02, (a1.t - a0.t) / 1000);
+  return { x: (a1.x - a0.x) / dt, y: (a1.y - a0.y) / dt };
+}
+function noteInp(inp, x, y){
+  const t = performance.now();
+  inp.hist.push({ x, y, t });
+  while(inp.hist.length > 2 && t - inp.hist[0].t > 140) inp.hist.shift();
+}
 
-/* 摇杆（模式1）与挥拍按键（模式2） */
+const input = { keys:{} };                 // 键盘按键状态（全局）
+let HUMAN = { L:null, R:null };            // 每个半场由谁操控（同屏双人）
+
+/* 摇杆（模式1，仅单人）与挥拍按键（模式2） */
 const stick = { L:{x:0,y:0}, R:{x:0,y:0}, Rs:{x:0,y:0}, Rg:{x:0,y:0} };
-let swingReq = false, swingHot = false, swingBuf = 0;   // swingBuf：冷却期间的按键缓存
+let swingHot = false;
+
+function primaryHuman(){ return P; }        // 我方那一位真人（相机/HUD 跟着他）
 
 function bindCtrl(){
   const mk = (el, key) => {
@@ -648,55 +697,81 @@ function bindCtrl(){
   mk(document.getElementById('joyL'), 'L');
   mk(document.getElementById('joyR'), 'R');
   const sb = document.getElementById('swingBtn');
-  if(sb) sb.addEventListener('pointerdown', e => { e.preventDefault(); swingReq = true; audioInit(); });
+  if(sb) sb.addEventListener('pointerdown', e => {
+    e.preventDefault(); audioInit();
+    const h = HUMAN[P.home]; if(h) h.inp.swing = true;
+  });
+  const sb2 = document.getElementById('swingBtn2');
+  if(sb2) sb2.addEventListener('pointerdown', e => {
+    e.preventDefault(); audioInit();
+    const h = HUMAN[P.home === 'L' ? 'R' : 'L']; if(h) h.inp.swing = true;
+  });
 }
 // 屏幕方向 → 画面方向（画面被旋转时保持一致）
 function stickToGame(sx, sy){
   return rotSign ? { x: rotSign * sy, y: -rotSign * sx } : { x: sx, y: sy };
 }
-const ptrHist = [];                       // 最近若干次指针位置（用于算挥拍速度）
-function notePointer(x, y){
-  const t = performance.now();
-  ptrHist.push({ x, y, t });
-  while(ptrHist.length > 2 && t - ptrHist[0].t > 140) ptrHist.shift();
-}
-function pointerVel(){
-  if(ptrHist.length < 2) return { x: 0, y: 0 };
-  const a0 = ptrHist[0], a1 = ptrHist[ptrHist.length - 1];
-  const dt = Math.max(0.02, (a1.t - a0.t) / 1000);
-  return { x: (a1.x - a0.x) / dt, y: (a1.y - a0.y) / dt };
-}
-
-function setPointer(e){
-  // 舞台可能被旋转过 90°，这里把屏幕坐标逆变换回 canvas 局部坐标
+/* 舞台可能被旋转过 90°，把屏幕坐标逆变换回 canvas 局部坐标 */
+function canvasPoint(e){
   const r = cv.getBoundingClientRect();
   const cw = cv.offsetWidth || W, ch = cv.offsetHeight || H;
   const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   const dx = e.clientX - cx, dy = e.clientY - cy;
   const lx = rotSign ? (cw / 2 + rotSign * dy) : (cw / 2 + dx);
   const ly = rotSign ? (ch / 2 - rotSign * dx) : (ch / 2 + dy);
-  input.px = lx / cw * W;
-  input.py = ly / ch * H;
-  input.active = true;
-  notePointer(input.px, input.py);
+  return { x: lx / cw * W, y: ly / ch * H };
 }
-cv.addEventListener('pointerdown', e => { input.down = true; setPointer(e); audioInit(); cv.setPointerCapture(e.pointerId); e.preventDefault(); });
-cv.addEventListener('pointermove', e => { if(input.down || e.pointerType === 'mouse') setPointer(e); });
-cv.addEventListener('pointerup',   () => { input.down = false; });
-cv.addEventListener('pointercancel',()=> { input.down = false; });
+
+/* 这个触点归谁：双人时按左右半场分给各自的球员，单人时全给我方 */
+function humanAt(x){
+  if(!G.twoPlayer || !HUMAN.L || !HUMAN.R) return HUMAN[P.home] || P;
+  return HUMAN[x < W / 2 ? 'L' : 'R'] || HUMAN[P.home] || P;
+}
+
+const ptrOwner = new Map();               // pointerId -> 球员
+
+function applyPointer(a, pt){
+  a.inp.px = pt.x; a.inp.py = pt.y; a.inp.active = true;
+  noteInp(a.inp, pt.x, pt.y);
+}
+
+cv.addEventListener('pointerdown', e => {
+  const pt = canvasPoint(e);
+  const a = humanAt(pt.x);
+  if(!a) return;
+  ptrOwner.set(e.pointerId, a);
+  a.inp.down = true;
+  applyPointer(a, pt);
+  audioInit();
+  try{ cv.setPointerCapture(e.pointerId); }catch(err){}
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => {
+  const a = ptrOwner.get(e.pointerId);
+  if(a) applyPointer(a, canvasPoint(e));
+});
+const endPointer = e => {
+  const a = ptrOwner.get(e.pointerId);
+  if(a){ a.inp.down = false; }
+  ptrOwner.delete(e.pointerId);
+};
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+
+/* 键位：我方 WASD，对方方向键；空格/回车各自挥拍 */
+const KEY_MINE = { up:'w', down:'s', left:'a', right:'d', swing:' ' };
+const KEY_FOE  = { up:'ArrowUp', down:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', swing:'Enter' };
+
 window.addEventListener('keydown', e => {
   input.keys[e.key] = true;
-  if(e.key === ' ' || e.key === 'Enter'){ if(G.mode === 2){ swingReq = true; audioInit(); } }
+  if(e.key === ' ' && G.mode === 2){ const h = HUMAN[P.home]; if(h) h.inp.swing = true; audioInit(); }
+  if(e.key === 'Enter' && G.mode === 2 && G.twoPlayer){
+    const h = HUMAN[P.home === 'L' ? 'R' : 'L']; if(h) h.inp.swing = true; audioInit();
+  }
   if(e.key === 'Escape' && G.state === 'play') G.state = 'menu', showPanel('menu');
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
 });
 window.addEventListener('keyup', e => { input.keys[e.key] = false; });
-
-/* 挥拍速度历史（用于手势识别） */
-const vbuf = [];
-let gestCache = { type:null, t:-9 };   // 记住最近一次有效手势（0.25s 内仍可用）
-const pyHist = [];                     // 拍头高度采样（判断"抬过拍 / 沉过拍"）
-let pyTick = 0;
 
 /* 够不到就跳：返回为了够到该高度所需的离地高度（0 = 站着就够得到） */
 /* 肩的位置：随身体跑位、跳跃、探身一起动 */
@@ -803,8 +878,8 @@ function updateBodyY(a, dt){
   if(a.landT  > 0) a.landT  -= dt;
 }
 
-function updatePlayerPaddle(dt){
-  const a = P;
+function updatePlayerPaddle(a, dt){
+  const inp = a.inp;
   const prevX = a.px, prevY = a.py, prevBy = a.by;
   updateBodyY(a, dt);
 
@@ -817,7 +892,7 @@ function updatePlayerPaddle(dt){
   const stanceAdj = (G.mode === 1 ? stick.L.y * 16 : 0);
 
   if(G.mode === 2){
-    autoAimPlayer(dt, 0, loX, hiX, bLo, bHi);            // 时机模式：自动跑位与举拍
+    autoAimPlayer(a, dt, 0, loX, hiX, bLo, bHi);         // 时机模式：自动跑位与举拍
   } else {
     let tx, ty;
     if(G.mode === 1){
@@ -837,20 +912,21 @@ function updatePlayerPaddle(dt){
       a.svy = (rv.y - stick.Rg.y) / Math.max(dt, 1e-4) * 55;
       stick.Rg.x = rv.x; stick.Rg.y = rv.y;
     } else {
-      // ── 拖拽模式（含方向键） ──
+      // ── 拖拽模式（含各自的键位）：鼠标/手指在画面上拖，或用自己的那套方向键 ──
+      const km = (G.twoPlayer && a.home !== P.home) ? KEY_FOE : KEY_MINE;
       let kx = 0, ky = 0;
-      if(input.keys['ArrowLeft']  || input.keys['a']) kx -= 1;
-      if(input.keys['ArrowRight'] || input.keys['d']) kx += 1;
-      if(input.keys['ArrowUp']    || input.keys['w']) ky -= 1;
-      if(input.keys['ArrowDown']  || input.keys['s']) ky += 1;
+      if(input.keys[km.left])  kx -= 1;
+      if(input.keys[km.right]) kx += 1;
+      if(input.keys[km.up])    ky -= 1;
+      if(input.keys[km.down])  ky += 1;
       if(kx || ky){
         const l = Math.hypot(kx, ky);
-        input.px += kx/l * 520 * dt; input.py += ky/l * 520 * dt; input.active = true;
+        inp.px += kx/l * 520 * dt; inp.py += ky/l * 520 * dt; inp.active = true;
+        noteInp(inp, inp.px, inp.py);
       }
-      tx = input.px; ty = input.py;
-      // 指针自身的移动速度才是"挥拍意图"：拍头被平滑拖慢，直接用它判定手势，
-      // 快速下压才会被识别成杀球（否则永远只有一百多的假速度）。
-      const pv = pointerVel();
+      tx = inp.px; ty = inp.py;
+      // 指针自身的移动速度才是"挥拍意图"：拍头被平滑拖慢，直接用它判定手势
+      const pv = inpVel(inp);
       a.pvx = pv.x; a.pvy = pv.y;
       const w = tx - a.bx;
       if(Math.abs(w) > 14) a.bx += sign(w) * BODY_SPEED * Math.min(1, (Math.abs(w) - 14) / 26) * dt;
@@ -867,7 +943,8 @@ function updatePlayerPaddle(dt){
   }
 
   // 记录近 ~0.5s 的拍头高度：举过拍=可杀球，沉过拍=可挑球
-  if((pyTick++ & 1) === 0){ pyHist.push(a.py + a.by); if(pyHist.length > 12) pyHist.shift(); }
+  a.pyTick++;
+  if((a.pyTick & 1) === 0){ a.pyHist.push(a.py + a.by); if(a.pyHist.length > 12) a.pyHist.shift(); }
 
   // 挥拍速度（平滑）
   const bodyVy = (a.by - prevBy) / Math.max(dt, 1e-4);   // 跳跃带来的位移不计入挥拍速度
@@ -884,8 +961,8 @@ function updatePlayerPaddle(dt){
     a.vx += (ivx - a.vx) * Math.min(1, dt * velK);
     a.vy += (ivy - a.vy) * Math.min(1, dt * velK);
   }
-  vbuf.push({ x: a.vx, y: a.vy });
-  if(vbuf.length > 24) vbuf.shift();
+  a.vbuf.push({ x: a.vx, y: a.vy });
+  if(a.vbuf.length > 24) a.vbuf.shift();
 
   if(G.mode !== 2){
     // 向后拖 = 蓄力；向前挥 = 释放
@@ -903,37 +980,38 @@ function updatePlayerPaddle(dt){
   if(a.hitFlash > 0) a.hitFlash -= dt;
 
   if(G.mode !== 2){
-    const g = detectGesture();
-    if(g) gestCache = { type:g, t:performance.now() };
+    const g = detectGesture(a);
+    if(g) a.gestCache = { type:g, t:performance.now() };
   }
 }
 
 /* 手势识别：看挥拍速度向量的方向与反转
    ↑ 然后迅速 ↓ = 杀球 | ↓ 然后向前 ↑ = 挑球 | 直接前 ↑ = 高远 | 水平前挥 = 平抽 | 轻推 = 吊球/搓网 */
-function vAvg(from, to){
+function vAvg(a, from, to){
   let x = 0, y = 0, n = 0;
-  for(let i = from; i < to && i < vbuf.length; i++){ x += vbuf[i].x; y += vbuf[i].y; n++; }
+  const vb = a.vbuf;
+  for(let i = from; i < to && i < vb.length; i++){ x += vb[i].x; y += vb[i].y; n++; }
   return n ? { x: x / n, y: y / n } : { x: 0, y: 0 };
 }
 
-function detectGesture(){
-  const L = vbuf.length;
+function detectGesture(a){
+  const L = a.vbuf.length;
   if(L < 6) return null;
-  const prev = vAvg(Math.max(0, L - 12), Math.max(0, L - 3));   // 前一段（抬拍/沉拍）
-  const now  = vAvg(L - 3, L);                                  // 最近一段（挥出去）
+  const prev = vAvg(a, Math.max(0, L - 12), Math.max(0, L - 3));   // 前一段（抬拍/沉拍）
+  const now  = vAvg(a, L - 3, L);                                  // 最近一段（挥出去）
   const sp = Math.hypot(now.x, now.y);
   if(sp < 55) return null;
   if(sp < 200){                                   // 轻推 = 吊球 / 搓网
     return Math.abs(ball.x - NET_X) < 58 ? 'NET' : 'DROP';
   }
-  const fwd = now.x * P.dir;                      // 向前为正
+  const fwd = now.x * a.dir;                      // 向前为正
   const up  = -now.y;                             // 向上为正
   const pUp = -prev.y;
   // 近半秒内：拍举到过高位 → 可杀球；压到过低位 → 可挑球
   let pyMin = 1e9, pyMax = -1e9;
-  for(let i = 0; i < pyHist.length; i++){
-    if(pyHist[i] < pyMin) pyMin = pyHist[i];
-    if(pyHist[i] > pyMax) pyMax = pyHist[i];
+  for(let i = 0; i < a.pyHist.length; i++){
+    if(a.pyHist[i] < pyMin) pyMin = a.pyHist[i];
+    if(a.pyHist[i] > pyMax) pyMax = a.pyHist[i];
   }
   // 杀球：只要"这一下是朝下压"，且拍子到过网高附近（或刚才在往上抬），就认
   const raised = pyMin < NET_TOP - 4;
@@ -951,8 +1029,7 @@ function powerOf(a){
 }
 
 /* 玩家碰撞判定：球拍甜区（圆）与球 */
-function tryPlayerHit(){
-  const a = P;
+function tryPlayerHit(a){
   if(a.cool > 0) return;
   if(ball.last === a.home) return;               // 不能连击
   const dx = ball.x - a.px, dy = ball.y - a.py;
@@ -965,7 +1042,7 @@ function tryPlayerHit(){
     const btype = ball.y > NET_TOP ? 'LIFT' : 'CLEAR';
     const bs = computeShot(ball.x, ball.y, NET_X + a.dir * 0.55 * HALF, btype, 0.32);
     ball.vx = bs.vx; ball.vy = bs.vy;
-    ball.last = a.home; ball.trail.length = 0; pyHist.length = 0;
+    ball.last = a.home; ball.trail.length = 0; a.pyHist.length = 0;
     slowActive = false;                          // 挡到了也算击中，解除滞空
     a.cool = 0.18; a.charge = 0;
     beep(260, 0.06, 'triangle', 0.06);
@@ -974,15 +1051,15 @@ function tryPlayerHit(){
     setGest('被动挡球 BLOCK · 落点较浅');
     return;
   }
-  let type = detectGesture();
-  if(!type && gestCache.type && performance.now() - gestCache.t < 250) type = gestCache.type;
+  let type = detectGesture(a);
+  if(!type && a.gestCache.type && performance.now() - a.gestCache.t < 250) type = a.gestCache.type;
   if(!type) type = ball.y > NET_TOP ? 'LIFT' : (ball.y < NET_TOP - 30 ? 'SMASH' : 'CLEAR');
   const power = powerOf(a);
   // 低球位无法杀球 → 自动转平抽
   const t2 = (type === 'SMASH' && ball.y > NET_TOP - 8) ? 'DRIVE' : type;
   ball.x += sign(dx) * 2; ball.y += sign(dy) * 2;
-  doHit(a, t2, power, true);
-  a.charge = 0; pyHist.length = 0;
+  doHit(a, t2, power, a.home === P.home);
+  a.charge = 0; a.pyHist.length = 0;
 }
 
 function doHit(actor, type, power, isPlayer){
@@ -1028,7 +1105,7 @@ function doHit(actor, type, power, isPlayer){
   actor.hitFlash = 0.18;
   actor.swingDir = { x: sign(ball.vx), y: ball.vy / (Math.abs(ball.vx) + 1) };
   ball.trail.length = 0;
-  if(actor === P) pyHist.length = 0;
+  if(actor.isHuman) actor.pyHist.length = 0;
 
   // 特效
   const ang = Math.atan2(ball.vy, ball.vx);
@@ -1058,8 +1135,7 @@ const AIM_SPD = 520;   // 自动跑位比手动稍快（这个模式只考验按
 const REACH_SPAN = LEAN_X + ARM_MAX;                 // 跨步 + 手臂：横向够球跨度
 const REACH_TOP_Y = GROUND_Y - SH_OFF_Y - LEAN_Y - ARM_MAX;  // 站着（含踮脚）够得到的最高点
 
-function autoAimPlayer(dt, stanceAdj, loX, hiX, bLo, bHi){
-  const a = P;
+function autoAimPlayer(a, dt, stanceAdj, loX, hiX, bLo, bHi){
   let tx, ty;
   if(ball.live && ball.last !== a.home){
     const r = simulate(ball.x, ball.y, ball.vx, ball.vy, 3);
@@ -1109,17 +1185,17 @@ function autoShotFor(h, distNet){
   return distNet < 70 ? 'NET' : 'LIFT';
 }
 
-function timingSwingCheck(){
-  const a = P;
+function timingSwingCheck(a){
+  const inp = a.inp;
   // 上一拍冷却还没结束时按的键 → 缓存起来，冷却一结束立刻挥（AI 回球很快时不会白按）
-  if(swingReq && a.cool > 0 && G.state === 'play'){ swingBuf = 0.26; swingReq = false; }
-  if(swingBuf > 0){
-    swingBuf -= 1/60;
-    if(a.cool <= 0 && ball.live && ball.last !== a.home && G.state === 'play'){ swingReq = true; swingBuf = 0; }
-    else if(swingBuf <= 0) swingBuf = 0;
+  if(inp.swing && a.cool > 0 && G.state === 'play'){ inp.buf = 0.26; inp.swing = false; }
+  if(inp.buf > 0){
+    inp.buf -= 1/60;
+    if(a.cool <= 0 && ball.live && ball.last !== a.home && G.state === 'play'){ inp.swing = true; inp.buf = 0; }
+    else if(inp.buf <= 0) inp.buf = 0;
   }
-  if(!swingReq) return;
-  swingReq = false;
+  if(!inp.swing) return;
+  inp.swing = false;
   if(a.cool > 0 || !ball.live || ball.last === a.home || G.state !== 'play') return;
 
   const d = Math.hypot(ball.x - a.px, ball.y - a.py);
@@ -1315,11 +1391,11 @@ function aiChooseShot(cfg, plan){
 function startMatch(){
   G.score = [0,0]; G.rally = 0; G.stats = { smash:0, rally:0, maxRally:0 };
   buildTeams();
-  input.px = P.px; input.py = 195;
+  for(const k of ['L','R']) for(const a of TEAM[k] || []) { a.inp.px = a.bx; a.inp.py = 195; a.inp.swing = false; a.inp.buf = 0; }
   G.server = G.playerHome;                 // 玩家先发
   G.state = 'serve';
   layout();                                // 选边可能改变竖屏旋转方向 → 重排画面与控件
-  slowActive = false; timeScale = 1; swingReq = false; swingBuf = 0;
+  slowActive = false; timeScale = 1;
   serveReset();
   updateScoreUI();
   showTip(SERVE_TIP());
@@ -1438,15 +1514,16 @@ function updateActors(playerDt, dt){
   const chMine = sideChaser(mine), chFoe = sideChaser(foe);
   if(chFoe) A = chFoe;
 
-  for(const a of TEAM[mine]){
-    if(a === P) updatePlayerPaddle(playerDt);
-    else if(a === chMine) aiUpdate(a, dt);
-    else aiHold(a, dt);
-  }
-  for(const a of TEAM[foe]){
-    if(a === chFoe) aiUpdate(a, dt);
-    else aiHold(a, dt);
-  }
+  // 两侧的真人各跑各的输入；AI 队友该补位补位、该接球接球
+  const stepSide = (home, chaser) => {
+    for(const a of TEAM[home]){
+      if(a.isHuman) updatePlayerPaddle(a, playerDt);
+      else if(a === chaser) aiUpdate(a, dt);
+      else aiHold(a, dt);
+    }
+  };
+  stepSide(mine, chMine);
+  stepSide(foe, chFoe);
 }
 
 function step(dt){
@@ -1462,19 +1539,18 @@ function step(dt){
       G.serveTimer += dt;
       if(G.serveTimer > 0.9){ doServe(A, 'LIFT', 0.45); }
     } else {
-      // 玩家发球：挥拍碰到球即发（人机队友当发球人时交出控制权）
-      P = s;
-      const sp = Math.hypot(P.vx, P.vy);
-      const d = Math.hypot(ball.x - P.px, ball.y - P.py);
+      // 真人发球：挥拍碰到球即发（发球人也可能是对面的真人）
+      const sp = Math.hypot(s.vx, s.vy);
+      const d = Math.hypot(ball.x - s.px, ball.y - s.py);
       if(sp > 200 && d < PADDLE_R + BALL_R + 4){
-        const g = detectGesture();
+        const g = detectGesture(s);
         const type = (g === 'SMASH' || g === 'DRIVE') ? 'CLEAR' : (g || 'CLEAR');
-        doServe(P, type, clamp(0.3 + powerOf(P)*0.3, 0.3, 0.6));
-        P.charge = 0;
+        doServe(s, type, clamp(0.3 + powerOf(s)*0.3, 0.3, 0.6));
+        s.charge = 0;
       }
-      if(G.mode === 2 && swingReq){ swingReq = false; doServe(P, 'CLEAR', 0.45); }
+      if(G.mode === 2 && s.inp.swing){ s.inp.swing = false; doServe(s, 'CLEAR', 0.45); }
       G.serveTimer += dt;
-      if(G.serveTimer > 6){ doServe(P, 'CLEAR', 0.4); }   // 超时自动发
+      if(G.serveTimer > 6){ doServe(s, 'CLEAR', 0.4); }   // 超时自动发
     }
     return;
   }
@@ -1527,7 +1603,8 @@ function step(dt){
     }
   }
 
-  if(G.mode === 2){ timingSwingCheck(); } else { tryPlayerHit(); }
+  for(const a of (TEAM[P.home] || [])) if(a.isHuman){ G.mode === 2 ? timingSwingCheck(a) : tryPlayerHit(a); }
+  for(const a of (TEAM[P.home === 'L' ? 'R' : 'L'] || [])) if(a.isHuman){ G.mode === 2 ? timingSwingCheck(a) : tryPlayerHit(a); }
 
   // 落地
   if(ball.y >= GROUND_Y){
@@ -1946,7 +2023,7 @@ function applyMode(m){
   G.mode = m;
   stick.L.x = stick.L.y = stick.R.x = stick.R.y = 0;
   stick.Rs.x = stick.Rs.y = stick.Rg.x = stick.Rg.y = 0;
-  swingReq = false; swingBuf = 0;
+  for(const k of ['L','R']) for(const a of TEAM[k] || []) { a.inp.swing = false; a.inp.buf = 0; }
   if(document.body && document.body.dataset) document.body.dataset.mode = String(m);
   layoutCtrl();                          // 控件刚显示，按当前屏幕方向重摆一次
   const kn = document.querySelectorAll('.knob');
@@ -1964,7 +2041,7 @@ setInterval(()=>{ if(tipT > 0){ tipT -= 0.1; if(tipT <= 0) UI.tip.innerHTML = ID
 
 /* 菜单交互 */
 let selSide = 'L', selLv = 0, selHang = 1, selMode = 0;
-let selFormat = 1, selHumans = 1;
+let selFormat = 1, selHumans = 1, selTwo = 0;
 
 /* 赛制变化时，重建「我方真人」的可选数量（1 .. 人数）；全场至少有 1 个真人 */
 function renderHumanOpts(){
@@ -2015,12 +2092,27 @@ function refreshHelp(){
   const box = document.getElementById('helpBox');
   if(!box) return;
   const mate = selFormat - selHumans;
-  const team = '<b>' + selFormat + ' V ' + selFormat + '</b>：我方 ' + selHumans + ' 真人' +
-    (mate > 0 ? ' + ' + mate + ' 人机队友' : '（全真人）') + ' · 对方 ' + selFormat + ' 人机' +
-    (selHumans > 1 ? '<br><span class="en">多名真人时，操控权自动跟随离球最近的那位</span>' : '') +
-    '<br>';
+  const team = selTwo
+    ? '<b>' + selFormat + ' V ' + selFormat + ' · 双人同屏</b>：左半屏归 P1、右半屏归 P2' +
+      (mate > 0 ? '，其余位置人机补位' : '') +
+      '<br><span class="en">同一个球场各打各的半场；电脑上 P1 用鼠标 / WASD，P2 用方向键</span><br>'
+    : '<b>' + selFormat + ' V ' + selFormat + '</b>：我方 ' + selHumans + ' 真人' +
+      (mate > 0 ? ' + ' + mate + ' 人机队友' : '（全真人）') + ' · 对方 ' + selFormat + ' 人机' +
+      (selHumans > 1 ? '<br><span class="en">多名真人时，操控权自动跟随离球最近的那位</span>' : '') +
+      '<br>';
   box.innerHTML = team + HELP[selMode] + (selHang ? HANG_TIP : '<br><span class="en">过网滞空：已关闭</span>');
 }
+document.querySelectorAll('.opt[data-two]').forEach(b => b.addEventListener('click', () => {
+  selTwo = parseInt(b.dataset.two, 10);
+  document.querySelectorAll('.opt[data-two]').forEach(x => x.classList.toggle('sel', x === b));
+  const row = document.getElementById('humanRow');
+  if(row) row.classList.toggle('hidden', selTwo === 1);
+  if(selTwo === 1) selHumans = 1;          // 双人时我方就一位真人，其余位置人机
+  G.twoPlayer = selTwo === 1;
+  G.format = selFormat; G.humans = selHumans;
+  buildTeams();                             // 菜单背景立刻切成两边的阵容
+  refreshHelp();
+}));
 document.querySelectorAll('.opt[data-format]').forEach(b => b.addEventListener('click', () => {
   selFormat = parseInt(b.dataset.format, 10);
   document.querySelectorAll('.opt[data-format]').forEach(x => x.classList.toggle('sel', x === b));
@@ -2055,7 +2147,7 @@ el('startBtn').addEventListener('click', () => {
   audioInit();
   if(CYB && CYB.sound) CYB.sound.play('click');
   G.playerHome = selSide; G.level = selLv; G.hangTime = !!selHang;
-  G.format = selFormat; G.humans = selHumans;
+  G.format = selFormat; G.humans = selHumans; G.twoPlayer = selTwo === 1;
   G.mode = selMode; applyMode(selMode);
   showPanel(null);
   startMatch();
@@ -2067,9 +2159,11 @@ el('menuBtn').addEventListener('click', () => { G.state = 'menu'; showPanel('men
 window.__BADMIN = { G, ball, input, SHOT, P: () => P, A: () => A, team: () => TEAM, computeShot, start: startMatch,
                     simulate, detect: () => detectGesture(), hit: doHit,
                     slow: () => ({ active: slowActive, scale: +timeScale.toFixed(3) }),
-                    stick, swing: () => { swingReq = true; }, mode: m => applyMode(m) };
+                    stick, swing: () => { const h = HUMAN[P.home]; if(h) h.inp.swing = true; },
+                    mode: m => applyMode(m), human: () => HUMAN };
 
 /* 初始画面：待机时的静态渲染 */
+buildTeams();           // 菜单阶段也要有球员站在场上
 bindCtrl();
 bindLayout();
 applyMode(selMode);
