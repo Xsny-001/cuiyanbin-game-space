@@ -102,7 +102,9 @@
   body[data-two="1"][data-mine="L"] #swingBtn{left:calc(var(--cl,10px) + env(safe-area-inset-left));right:auto}
   body[data-two="1"][data-mine="L"] #swingBtn2{right:calc(var(--crb,10px) + env(safe-area-inset-right));left:auto}
   body[data-two="1"][data-mine="R"] #swingBtn2{left:calc(var(--cl,10px) + env(safe-area-inset-left));right:auto}
-  body[data-screen="menu"] #ctrl > *{display:none}
+  body[data-screen="menu"] #ctrl > *,
+  body[data-screen="menu"] #swingBtn,
+  body[data-screen="menu"] #swingBtn2{display:none!important}
   /* 横屏时控件压在画面上，进一步降低存在感，少挡球场 */
   body[data-orient="landscape"] .joy{background:rgba(14,20,44,.26);
     border-color:rgba(74,90,156,.62)}
@@ -120,6 +122,7 @@
   h2{font-size:1.7em;letter-spacing:.08em;color:#ffd85e}
   .sub{font-size:.8em;color:#8fa0d8;letter-spacing:.05em}
   .row{display:flex;flex-direction:column;align-items:center;gap:.32em;width:100%;max-width:22em}
+  .row.hidden{display:none}
   .label{font-size:.78em;color:#8fa0d8;letter-spacing:.08em}
   .opts{display:flex;gap:.5em;width:100%}
   .opt{flex:1;padding:.55em .3em;font:inherit;font-size:.85em;cursor:pointer;color:#c7d2ff;
