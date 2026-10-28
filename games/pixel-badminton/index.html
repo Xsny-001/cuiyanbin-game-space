@@ -102,9 +102,27 @@
   body[data-two="1"][data-mine="L"] #swingBtn{left:calc(var(--cl,10px) + env(safe-area-inset-left));right:auto}
   body[data-two="1"][data-mine="L"] #swingBtn2{right:calc(var(--crb,10px) + env(safe-area-inset-right));left:auto}
   body[data-two="1"][data-mine="R"] #swingBtn2{left:calc(var(--cl,10px) + env(safe-area-inset-left));right:auto}
+  /* ---------- 杀球键（仅拖拽模式，且该侧全员真人时出现） ---------- */
+  #smashBtn,#smashBtn2{position:absolute;right:calc(var(--crb,10px) + env(safe-area-inset-right));
+    bottom:calc(var(--cb,10px) + env(safe-area-inset-bottom));
+    width:calc(var(--joyb,96px)*.74);height:calc(var(--joyb,96px)*.74);border-radius:16px;
+    font:inherit;color:#2a0f0f;background:#ff6b5e;border:3px solid #ffc9c2;
+    box-shadow:4px 4px 0 rgba(0,0,0,.6);flex-direction:column;align-items:center;justify-content:center;
+    gap:.04em;cursor:pointer;touch-action:none;display:none}
+  #smashBtn b,#smashBtn2 b{font-size:calc(var(--joyb,96px)*.19);letter-spacing:.08em;line-height:1.05}
+  #smashBtn small,#smashBtn2 small{font-size:calc(var(--joyb,96px)*.095);letter-spacing:.14em;opacity:.75}
+  #smashBtn:active,#smashBtn2:active{transform:translate(2px,2px);box-shadow:2px 2px 0 rgba(0,0,0,.6)}
+  #smashBtn.arm,#smashBtn2.arm{background:#ffd85e;border-color:#fff2b8;color:#141a33}
+  body[data-mode="0"][data-screen="play"][data-smash1="1"] #smashBtn{display:flex}
+  body[data-mode="0"][data-screen="play"][data-smash2="1"] #smashBtn2{display:flex}
+  /* 双人时各自放在自己那半边 */
+  body[data-two="1"][data-mine="L"] #smashBtn{left:calc(var(--cl,10px) + env(safe-area-inset-left));right:auto}
+  body[data-two="1"][data-mine="R"] #smashBtn2{left:calc(var(--cl,10px) + env(safe-area-inset-left));right:auto}
   body[data-screen="menu"] #ctrl > *,
   body[data-screen="menu"] #swingBtn,
-  body[data-screen="menu"] #swingBtn2{display:none!important}
+  body[data-screen="menu"] #swingBtn2,
+  body[data-screen="menu"] #smashBtn,
+  body[data-screen="menu"] #smashBtn2{display:none!important}
   /* 横屏时控件压在画面上，进一步降低存在感，少挡球场 */
   body[data-orient="landscape"] .joy{background:rgba(14,20,44,.26);
     border-color:rgba(74,90,156,.62)}
@@ -203,6 +221,8 @@
     <div class="joy" id="joyR"><div class="knob"></div><span>挥拍</span></div>
     <button id="swingBtn"><b>挥拍</b><small>P1</small></button>
     <button id="swingBtn2"><b>挥拍</b><small>P2</small></button>
+    <button id="smashBtn"><b>杀球</b><small>SMASH</small></button>
+    <button id="smashBtn2"><b>杀球</b><small>P2</small></button>
   </div>
 
   <div id="menu" class="panel">
@@ -635,6 +655,9 @@ function buildTeams(){
   if(document.body){
     document.body.dataset.two = G.twoPlayer ? '1' : '0';
     document.body.dataset.mine = G.playerHome;
+    const allHuman = home => (TEAM[home] || []).length > 0 && (TEAM[home] || []).every(x => x.isHuman);
+    document.body.dataset.smash1 = allHuman(mine) ? '1' : '0';
+    document.body.dataset.smash2 = (G.twoPlayer && allHuman(foe)) ? '1' : '0';
   }
 }
 
@@ -643,7 +666,12 @@ function buildTeams(){
    ============================================================ */
 /* 每位真人一份输入状态（同屏双人时，左右半场各归一个人） */
 function makeInp(x){
-  return { px:x, py:190, down:false, active:false, hist:[], swing:false, buf:0 };
+  return { px:x, py:190, down:false, active:false, hist:[], swing:false, buf:0, smash:0 };
+}
+/* 杀球键：按下后 0.6 秒内拍面碰到球，这一拍强制按杀球处理 */
+function armSmash(a){
+  a.inp.smash = 0.6;
+  beep(700, 0.05, 'square', 0.05, 980);
 }
 function inpVel(inp){
   const h = inp.hist;
@@ -709,6 +737,16 @@ function bindCtrl(){
     e.preventDefault(); audioInit();
     const h = HUMAN[P.home === 'L' ? 'R' : 'L']; if(h) h.inp.swing = true;
   });
+  const sm1 = document.getElementById('smashBtn');
+  if(sm1) sm1.addEventListener('pointerdown', e => {
+    e.preventDefault(); audioInit();
+    const h = HUMAN[P.home]; if(h) armSmash(h);
+  });
+  const sm2 = document.getElementById('smashBtn2');
+  if(sm2) sm2.addEventListener('pointerdown', e => {
+    e.preventDefault(); audioInit();
+    const h = HUMAN[P.home === 'L' ? 'R' : 'L']; if(h) armSmash(h);
+  });
 }
 // 屏幕方向 → 画面方向（画面被旋转时保持一致）
 function stickToGame(sx, sy){
@@ -770,6 +808,10 @@ window.addEventListener('keydown', e => {
   if(e.key === ' ' && G.mode === 2){ const h = HUMAN[P.home]; if(h) h.inp.swing = true; audioInit(); }
   if(e.key === 'Enter' && G.mode === 2 && G.twoPlayer){
     const h = HUMAN[P.home === 'L' ? 'R' : 'L']; if(h) h.inp.swing = true; audioInit();
+  }
+  if(e.code === 'KeyF' && G.mode === 0){ const h = HUMAN[P.home]; if(h) armSmash(h); }
+  if(e.code === 'ShiftRight' && G.mode === 0 && G.twoPlayer){
+    const h = HUMAN[P.home === 'L' ? 'R' : 'L']; if(h) armSmash(h);
   }
   if(e.key === 'Escape' && G.state === 'play') G.state = 'menu', showPanel('menu');
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
@@ -883,6 +925,7 @@ function updateBodyY(a, dt){
 
 function updatePlayerPaddle(a, dt){
   const inp = a.inp;
+  if(inp.smash > 0) inp.smash -= dt;
   const prevX = a.px, prevY = a.py, prevBy = a.by;
   updateBodyY(a, dt);
 
@@ -1040,7 +1083,8 @@ function tryPlayerHit(a){
   if(dist > PADDLE_R + BALL_R + 2) return;
 
   const sp = Math.hypot(a.vx, a.vy);
-  if(sp < MIN_HIT_SPEED && a.charge < 0.22){
+  // 杀球键已按下时不走"被动挡球"：按了键就是想杀，慢一点也得杀出去
+  if(sp < MIN_HIT_SPEED && a.charge < 0.22 && a.inp.smash <= 0){
     // 挥拍太慢 → 保守挡回对方中后场（不至于白送分，但也没威胁）
     const btype = ball.y > NET_TOP ? 'LIFT' : 'CLEAR';
     const bs = computeShot(ball.x, ball.y, NET_X + a.dir * 0.55 * HALF, btype, 0.32);
@@ -1057,7 +1101,14 @@ function tryPlayerHit(a){
   let type = detectGesture(a);
   if(!type && a.gestCache.type && performance.now() - a.gestCache.t < 250) type = a.gestCache.type;
   if(!type) type = ball.y > NET_TOP ? 'LIFT' : (ball.y < NET_TOP - 30 ? 'SMASH' : 'CLEAR');
-  const power = powerOf(a);
+  let power = powerOf(a);
+  // 杀球键：窗口内碰到球 → 这一拍强制杀球（球太低仍会降级成平抽）
+  if(a.inp.smash > 0){
+    a.inp.smash = 0;
+    type = 'SMASH';
+    power = Math.max(power, 0.8);
+    shake = Math.max(shake, 2);
+  }
   // 低球位无法杀球 → 自动转平抽
   const t2 = (type === 'SMASH' && ball.y > NET_TOP - 8) ? 'DRIVE' : type;
   ball.x += sign(dx) * 2; ball.y += sign(dy) * 2;
@@ -1961,6 +2012,13 @@ function render(dt){
 
   drawLandMark();
   drawTimingCue();
+  // 杀球准备中：拍头套一圈红光，看得见窗口还剩多少
+  for(const h of [P, HUMAN[P.home === 'L' ? 'R' : 'L']]){
+    if(h && h.inp.smash > 0){
+      const k = clamp(h.inp.smash / 0.6, 0, 1);
+      pixelRing(h.px, h.py, 24 + (1 - k) * 6, 'rgba(255,107,94,' + (0.35 + k * 0.45).toFixed(2) + ')');
+    }
+  }
   drawBall();
   drawOffscreen();
   drawParticles(dt);
@@ -1976,6 +2034,14 @@ function render(dt){
     ctx.textAlign = 'left';
   }
   ctx.restore();
+
+  // 杀球键：窗口有效期内按钮保持点亮
+  {
+    const b1 = document.getElementById('smashBtn'), b2 = document.getElementById('smashBtn2');
+    const f = HUMAN[P.home === 'L' ? 'R' : 'L'];
+    if(b1) b1.classList.toggle('arm', !!(P && P.inp.smash > 0));
+    if(b2) b2.classList.toggle('arm', !!(f && f.inp.smash > 0));
+  }
 
   // 时机模式：球进入最佳窗口时，挥拍按键变金色
   if(G.mode === 2){
@@ -2075,7 +2141,8 @@ const HELP = [
   '<b>轻推</b> = <b>吊球 / 搓网</b> <span class="en">DROP · NET</span><br>' +
   '向后拖可蓄力，拖得越快球越冲、落点越深<br>' +
   '<span class="en">手臂长度固定，够远够高靠<b>跨步 / 起跳</b>，不是伸胳膊</span><br>' +
-  '<span class="en">慢慢挪拍碰到球会变成"挡球"，至少能把球回过去</span>',
+  '<span class="en">慢慢挪拍碰到球会变成"挡球"，至少能把球回过去</span><br>' +
+  '<b>杀球键</b>：全员真人（无人机队友）时右下角出现，按下后 0.6 秒内碰到球就是一记杀球（电脑按 <b>F</b>）<br>',
 
   '<b>摇杆</b>：<b>左摇杆</b>跑位（上下可微调击球点高度）<br>' +
   '<b>右摇杆</b>甩拍，方向即招式（电脑可直接用鼠标拖）：<br>' +
