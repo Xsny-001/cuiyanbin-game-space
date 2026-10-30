@@ -113,6 +113,7 @@ npx supabase db reset       # 重放 migrations
 - 房间码长度不固定，实测出现过 11 位与 13 位，代码中禁止按固定长度截断。
 - 联机对局不写本地战绩，也不能悔棋或重开。
 - `_headers` 里的 CSP 只对 Cloudflare 生效，本地 `python -m http.server` 不带这些头，验证 CSP 要用 `npx wrangler dev`。
+- 自有 JS/CSS 现在按 `max-age=0, must-revalidate` 回源校验；`lobby.html` 与 `games/gomoku/index.html` 里的联机脚本还额外带了 `?v=` 版本号，改动这些文件后请同步改版本号，避免边缘节点继续发旧副本。
 
 ## 本地预览
 
