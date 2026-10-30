@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Netlib 参数实测 · 游戏空间</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; padding: 20px; background: #0b0f14; color: #d7e2ea;
+        font: 13px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      h1 { font-size: 16px; margin: 0 0 4px; letter-spacing: 1px; }
+      .sub { color: #6f8494; margin: 0 0 16px; font-size: 11px; }
+      .panel {
+        border: 1px solid #1d2b36; border-radius: 8px; padding: 12px 14px;
+        background: #0f1620; margin-bottom: 12px;
+      }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+      input {
+        flex: 1 1 220px; min-width: 120px; background: #0a1118; color: #cfe3f0;
+        border: 1px solid #23343f; border-radius: 6px; padding: 7px 9px; font: inherit;
+      }
+      button {
+        background: #16324a; color: #cfe9ff; border: 1px solid #2a4d6b;
+        border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer;
+      }
+      button:hover { background: #1c3f5d; }
+      button:disabled { opacity: .45; cursor: not-allowed; }
+      .kv { display: grid; grid-template-columns: 190px 1fr; gap: 2px 12px; }
+      .kv b { color: #7f96a8; font-weight: 400; }
+      .ok { color: #6ee7a8; } .bad { color: #ff8080; } .warn { color: #f5c451; }
+      #log {
+        max-height: 46vh; overflow: auto; background: #070b0f; border: 1px solid #17232c;
+        border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; word-break: break-all;
+      }
+      .t { color: #55697a; }
+      code { color: #8fd3ff; }
+    </style>
+  </head>
+  <body>
+    <h1>Netlib 参数实测</h1>
+    <p class="sub">
+      用途：在接入游戏前确认信令、房间码格式、P2P 连通与 TURN 凭证。打开 <code>?auto=1</code> 自动跑完整链路。
+    </p>
+
+    <div class="panel">
+      <div class="row">
+        <label for="gameId">Game ID</label>
+        <input id="gameId" spellcheck="false" />
+      </div>
+      <div class="row">
+        <button id="btnConnect" type="button">1. 连接信令</button>
+        <button id="btnCreate" type="button" disabled>2. 创建房间</button>
+        <input id="joinCode" placeholder="房间码" spellcheck="false" style="flex:0 1 160px" />
+        <button id="btnJoin" type="button" disabled>3. 第二端加入</button>
+        <button id="btnPing" type="button" disabled>4. 发消息测 RTT</button>
+        <button id="btnReset" type="button">重置</button>
+      </div>
+      <div class="kv" id="stats"></div>
+    </div>
+
+    <div id="log"></div>
+
+    <script src="../assets/vendor/netlib.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        var DEFAULT_GAME_ID = "9f2c1d47-6b8e-4a03-9c55-2e7d81b4f0aa";
+        var params = new URLSearchParams(location.search);
+
+        var NT = (window.__NT = {
+          state: "idle",
+          result: null,
+          log: [],
+          host: null,
+          guest: null,
+          hostReady: 0,
+          guestReady: 0,
+          roomCode: null,
+          peerLatency: null,
+          rtt: null,
+          ice: null,
+          candidates: null,
+          hostConnected: false,
+          guestConnected: false,
+          errors: []
+        });
+
+        var $ = function (id) { return document.getElementById(id); };
+        var statsEl = $("stats");
+        var logEl = $("log");
+
+        function stamp() {
+          var d = new Date();
+          return d.toISOString().slice(11, 23);
+        }
+
+        function log(msg, kind) {
+          var line = "[" + stamp() + "] " + msg;
+          NT.log.push({ t: Date.now(), msg: msg, kind: kind || "info" });
+          var span = document.createElement("div");
+          span.className = "t";
+          span.innerHTML = '<span class="t">' + stamp() + "</span>  " + msg;
+          if (kind === "ok") span.classList.add("ok");
+          if (kind === "bad") span.classList.add("bad");
+          if (kind === "warn") span.classList.add("warn");
+          logEl.appendChild(span);
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function setState(s) {
+          NT.state = s;
+          render();
+        }
+
+        function render() {
+          var rows = [
+            ["状态", NT.state],
+            ["信令地址", netlib && netlib.DefaultSignalingURL ? netlib.DefaultSignalingURL : "—"],
+            ["Game ID", $("gameId").value],
+            ["信令就绪（房主）", NT.hostReady ? NT.hostReady + " ms" : "—"],
+            ["信令就绪（第二端）", NT.guestReady ? NT.guestReady + " ms" : "—"],
+            ["房间码", NT.roomCode ? NT.roomCode + "（" + NT.roomCode.length + " 位）" : "—"],
+            ["房间码字符集", NT.roomCode ? (/^[a-z0-9]+$/.test(NT.roomCode) ? "小写字母+数字" : "含其他字符") : "—"],
+            ["P2P 连接", NT.peerLatency === null ? "—" : NT.peerLatency + " ms（connected 事件耗时）"],
+            ["消息 RTT", NT.rtt === null ? "—" : NT.rtt + " ms"],
+            ["TURN 凭证", NT.ice ? NT.ice.turnCredential : "—"],
+            ["ICE 配置", NT.ice ? NT.ice.summary : "—"],
+            ["候选类型", NT.candidates || "—"]
+          ];
+          statsEl.innerHTML = rows
+            .map(function (r) {
+              return "<b>" + r[0] + "</b><span>" + String(r[1]) + "</span>";
+            })
+            .join("");
+        }
+
+        var t = {};
+        function now() { return performance.now(); }
+        function ms(from) { return Math.round(now() - from); }
+
+        function makeNetwork(gameId) {
+          return new netlib.Network(gameId);
+        }
+
+        function iceSummary(config) {
+          var servers = (config && config.iceServers) || [];
+          var hasTurn = false;
+          var hasStun = false;
+          var credential = "无（纯 STUN）";
+          servers.forEach(function (s) {
+            var urls = Array.isArray(s.urls) ? s.urls.join(",") : String(s.urls);
+            if (urls.indexOf("turn:") === 0 || urls.indexOf("turns:") === 0) {
+              hasTurn = true;
+              if (s.username && s.credential) credential = "已下发（user=" + s.username + "）";
+              else credential = "TURN 存在但无凭证";
+            }
+            if (urls.indexOf("stun:") === 0) hasStun = true;
+          });
+          return {
+            summary: servers.length + " 组" + (hasStun ? " / STUN" : "") + (hasTurn ? " / TURN" : ""),
+            turnCredential: credential,
+            raw: servers
+          };
+        }
+
+        function collectCandidates(peer) {
+          try {
+            peer.conn.getStats().then(function (report) {
+              var types = {};
+              report.forEach(function (s) {
+                if (s.type === "local-candidate" && s.candidateType) {
+                  types[s.candidateType] = (types[s.candidateType] || 0) + 1;
+                }
+              });
+              NT.candidates = Object.keys(types).length
+                ? Object.keys(types).map(function (k) { return k + "×" + types[k]; }).join("，")
+                : "未统计到";
+              render();
+            });
+          } catch (e) {
+            NT.candidates = "统计失败：" + e.message;
+          }
+        }
+
+        function attachHostListeners(net) {
+          net.on("ready", function () { log("房主信令就绪", "ok"); });
+          net.on("lobby", function (code) { log("lobby 事件：<code>" + code + "</code>"); });
+          net.on("connected", function (peer) {
+            NT.hostConnected = true;
+            log("房主 connected：<code>" + peer.id + "</code>，耗时 " + ms(t.connect) + " ms", "ok");
+            NT.peerLatency = ms(t.connect);
+            var cfg = peer.conn.getConfiguration();
+            NT.ice = iceSummary(cfg);
+            collectCandidates(peer);
+            render();
+          });
+          net.on("disconnected", function (peer) { log("房主 disconnected：" + peer.id, "warn"); });
+          net.on("message", function (peer, channel, data) {
+            var parsed = null;
+            try { parsed = JSON.parse(data); } catch (e) { parsed = null; }
+            log("房主收到 [" + channel + "] " + String(data).slice(0, 80));
+            if (parsed && parsed.k === "pong") {
+              NT.rtt = Math.round(now() - parsed.t);
+              log("RTT " + NT.rtt + " ms", "ok");
+              render();
+            }
+          });
+          net.on("failed", function () { NT.errors.push("failed"); log("房主 failed", "bad"); });
+          net.on("signalingerror", function (e) { NT.errors.push(String(e)); log("信令错误：" + e, "bad"); });
+          net.on("rtcerror", function (e) { NT.errors.push(String(e)); log("RTC 错误：" + e, "bad"); });
+        }
+
+        function attachGuestListeners(net) {
+          net.on("ready", function () { log("第二端信令就绪", "ok"); });
+          net.on("connected", function (peer) {
+            NT.guestConnected = true;
+            log("第二端 connected：<code>" + peer.id + "</code>", "ok");
+          });
+          net.on("disconnected", function (peer) { log("第二端 disconnected：" + peer.id, "warn"); });
+          net.on("message", function (peer, channel, data) {
+            var parsed = null;
+            try { parsed = JSON.parse(data); } catch (e) { parsed = null; }
+            if (parsed && parsed.k === "ping") {
+              net.send("reliable", peer.id, JSON.stringify({ k: "pong", t: parsed.t }));
+            }
+          });
+          net.on("failed", function () { NT.errors.push("guest failed"); log("第二端 failed", "bad"); });
+          net.on("signalingerror", function (e) { log("第二端信令错误：" + e, "bad"); });
+        }
+
+        function ready(net) {
+          return new Promise(function (resolve, reject) {
+            var done = false;
+            net.on("ready", function () {
+              if (done) return;
+              done = true;
+              resolve();
+            });
+            setTimeout(function () {
+              if (!done) { done = true; reject(new Error("信令 15 秒未就绪")); }
+            }, 15000);
+          });
+        }
+
+        function connect() {
+          var gameId = $("gameId").value.trim() || DEFAULT_GAME_ID;
+          setState("connecting");
+          t.ready = now();
+          var net = makeNetwork(gameId);
+          NT.host = net;
+          attachHostListeners(net);
+          return ready(net).then(function () {
+            NT.hostReady = ms(t.ready);
+            setState("signaling");
+            $("btnCreate").disabled = false;
+            render();
+          });
+        }
+
+        function createRoom() {
+          var net = NT.host;
+          if (!net) return Promise.reject(new Error("尚未连接信令"));
+          setState("creating");
+          t.create = now();
+          return net
+            .create({ public: false, maxPlayers: 2, customData: { probe: true } })
+            .then(function (code) {
+              NT.roomCode = code;
+              $("joinCode").value = code;
+              log("创建成功，房间码 <code>" + code + "</code>（" + code.length + " 位）", "ok");
+              setState("room-created");
+              $("btnJoin").disabled = false;
+              render();
+              return code;
+            })
+            .catch(function (e) {
+              log("创建失败：" + e.message, "bad");
+              NT.errors.push("create: " + e.message);
+              setState("error");
+              throw e;
+            });
+        }
+
+        function joinRoom() {
+          var code = $("joinCode").value.trim();
+          if (!code) return Promise.reject(new Error("房间码为空"));
+          var gameId = $("gameId").value.trim() || DEFAULT_GAME_ID;
+          t.join = now();
+          setState("joining");
+          var net = makeNetwork(gameId);
+          NT.guest = net;
+          attachGuestListeners(net);
+          t.connect = now();
+          return ready(net)
+            .then(function () {
+              NT.guestReady = ms(t.join);
+              return net.join(code);
+            })
+            .then(function (info) {
+              if (!info) throw new Error("join 返回 undefined（房间不存在或已满）");
+              log("加入成功：" + JSON.stringify(info), "ok");
+              setState("joined");
+              $("btnPing").disabled = false;
+              render();
+              return info;
+            })
+            .catch(function (e) {
+              log("加入失败：" + e.message, "bad");
+              NT.errors.push("join: " + e.message);
+              setState("error");
+              throw e;
+            });
+        }
+
+        function ping() {
+          var net = NT.host;
+          if (!net) return;
+          var peers = Array.from(net.peers.values());
+          if (!peers.length) { log("没有已连接的对端", "warn"); return; }
+          var payload = JSON.stringify({ k: "ping", t: now() });
+          peers.forEach(function (p) { net.send("reliable", p.id, payload); });
+          log("已发送 ping 给 " + peers.length + " 个对端");
+        }
+
+        function reset() {
+          try { NT.host && NT.host.close(); } catch (e) {}
+          try { NT.guest && NT.guest.close(); } catch (e) {}
+          NT.host = NT.guest = null;
+          NT.hostReady = NT.guestReady = 0;
+          NT.roomCode = null; NT.peerLatency = null; NT.rtt = null; NT.ice = null; NT.candidates = null;
+          NT.state = "idle"; NT.result = null; NT.errors = [];
+          logEl.innerHTML = ""; NT.log.length = 0;
+          $("btnCreate").disabled = true;
+          $("btnJoin").disabled = true;
+          $("btnPing").disabled = true;
+          $("joinCode").value = "";
+          render();
+        }
+
+        $("gameId").value = params.get("game") || DEFAULT_GAME_ID;
+        $("btnConnect").onclick = connect;
+        $("btnCreate").onclick = createRoom;
+        $("btnJoin").onclick = joinRoom;
+        $("btnPing").onclick = ping;
+        $("btnReset").onclick = reset;
+
+        // 自动流程：连信令 → 建房 → 第二端加入 → 等 connected → 测 RTT → 汇总
+        function auto() {
+          log("自动测试开始");
+          connect()
+            .then(function () { return createRoom(); })
+            .then(function (code) { $("joinCode").value = code; return joinRoom(); })
+            .then(function () {
+              return new Promise(function (resolve) {
+                var started = now();
+                var timer = setInterval(function () {
+                  if (NT.hostConnected && NT.guestConnected) {
+                    clearInterval(timer);
+                    log("双方 P2P 就绪", "ok");
+                    resolve();
+                  } else if (ms(started) > 20000) {
+                    clearInterval(timer);
+                    log("等待 connected 超时，peers=" + (NT.host ? NT.host.peers.size : 0), "warn");
+                    resolve();
+                  }
+                }, 150);
+              });
+            })
+            .then(function () {
+              ping();
+              return new Promise(function (r) { setTimeout(r, 1200); });
+            })
+            .then(function () {
+              NT.result = {
+                ok: !!(NT.roomCode && NT.peerLatency !== null && NT.rtt !== null),
+                state: NT.state,
+                signaling: netlib.DefaultSignalingURL,
+                hostReadyMs: NT.hostReady,
+                guestReadyMs: NT.guestReady,
+                roomCode: NT.roomCode,
+                roomCodeLength: NT.roomCode ? NT.roomCode.length : null,
+                roomCodeCharset: NT.roomCode ? (/^[a-z0-9]+$/.test(NT.roomCode) ? "lower+digit" : "other") : null,
+                connectMs: NT.peerLatency,
+                rttMs: NT.rtt,
+                turnCredential: NT.ice ? NT.ice.turnCredential : null,
+                iceSummary: NT.ice ? NT.ice.summary : null,
+                iceRaw: NT.ice ? NT.ice.raw : null,
+                candidates: NT.candidates,
+                errors: NT.errors
+              };
+              log("汇总：" + JSON.stringify(NT.result), "ok");
+              setState(NT.result.ok ? "done" : "partial");
+            })
+            .catch(function (e) {
+              NT.result = {
+                ok: false, state: NT.state, roomCode: NT.roomCode,
+                hostReadyMs: NT.hostReady, guestReadyMs: NT.guestReady,
+                connectMs: NT.peerLatency, rttMs: NT.rtt,
+                errors: NT.errors.concat([String(e && e.message || e)])
+              };
+              log("自动测试未通过：" + e.message, "bad");
+              setState("error");
+            });
+        }
+
+        render();
+        if (params.get("auto") === "1") setTimeout(auto, 300);
+      })();
+    </script>
+  </body>
+</html>

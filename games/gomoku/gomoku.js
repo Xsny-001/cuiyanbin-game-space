@@ -9,6 +9,19 @@
   var sound = App.sound;
   var scores = App.scores;
 
+  /* 联机钩子由 net.js 注入；单机模式下始终为 null，行为与原来完全一致 */
+  function hook() {
+    return window.__GOMOKU_NET__ || null;
+  }
+  function isOnline() {
+    var h = hook();
+    return !!(h && h.online);
+  }
+  function myColor() {
+    var h = hook();
+    return h && h.online ? h.color : HUMAN;
+  }
+
   var SIZE = 15;
   var W = 600;
   var PAD = 34;
@@ -62,6 +75,7 @@
   }
 
   function isHumanTurn() {
+    if (isOnline()) return (moves.length % 2 === 0) === (myColor() === HUMAN);
     return moves.length % 2 === 0;
   }
 
@@ -79,6 +93,10 @@
   /* ---------------- 新局 / 悔棋 ---------------- */
 
   function newGame() {
+    if (isOnline() && moves.length && !gameOver) {
+      setStatus(isHumanTurn(), "联机对局进行中，不能重新开始");
+      return;
+    }
     if (aiTimer !== null) {
       window.clearTimeout(aiTimer);
       aiTimer = null;
@@ -98,6 +116,10 @@
 
   function undo() {
     if (gameOver) return;
+    if (isOnline()) {
+      setStatus(isHumanTurn(), "联机对局不能悔棋");
+      return;
+    }
 
     if (aiTimer !== null) {
       window.clearTimeout(aiTimer);
@@ -137,7 +159,7 @@
     lastMove = move;
     hover = null;
 
-    sound.play(player === HUMAN ? "click" : "move");
+    sound.play(player === myColor() ? "click" : "move");
     updateHud();
     draw();
 
@@ -150,6 +172,14 @@
     }
     if (moves.length === SIZE * SIZE) {
       endGame(0);
+      return;
+    }
+
+    if (isOnline()) {
+      thinking = false;
+      var h = hook();
+      if (player === myColor() && h && h.afterLocalMove) h.afterLocalMove(r, c);
+      setStatus(moves.length % 2 === 0, isHumanTurn() ? "轮到你落子" : "等待对方落子");
       return;
     }
 
@@ -172,6 +202,26 @@
     if (aiTimer !== null) {
       window.clearTimeout(aiTimer);
       aiTimer = null;
+    }
+
+    if (isOnline()) {
+      if (winner === 0) {
+        overlayTitle.textContent = "平局";
+        overlayText.textContent = "棋盘下满了。";
+        sound.play("click");
+      } else if (winner === myColor()) {
+        overlayTitle.textContent = "你赢了！";
+        overlayText.textContent = "五子连珠，对手已看到结果。";
+        sound.play("win");
+      } else {
+        overlayTitle.textContent = "你输了";
+        overlayText.textContent = "对手先连成五子。";
+        sound.play("lose");
+      }
+      updateHud();
+      setStatus(winner === myColor(), "对局结束");
+      overlay.hidden = false;
+      return;
     }
 
     if (winner === HUMAN) {
@@ -474,7 +524,7 @@
       isHumanTurn() &&
       board[hover.r][hover.c] === 0
     ) {
-      drawStone(hover.r, hover.c, HUMAN, 0.28);
+      drawStone(hover.r, hover.c, myColor(), 0.28);
     }
 
     for (var m = 0; m < moves.length; m++) {
@@ -550,12 +600,25 @@
     if (!cell) return;
     if (board[cell.r][cell.c] !== 0) return;
     hover = null;
-    place(cell.r, cell.c, HUMAN);
+    place(cell.r, cell.c, myColor());
   });
 
   primaryBtn.addEventListener("click", newGame);
   restartBtn.addEventListener("click", newGame);
   undoBtn.addEventListener("click", undo);
+
+  /* ---------------- 联机接口 ---------------- */
+
+  window.__GOMOKU__ = {
+    place: place,
+    refresh: function () {
+      updateHud();
+      if (isOnline() && !gameOver) {
+        setStatus(moves.length % 2 === 0, isHumanTurn() ? "轮到你落子" : "等待对方落子");
+      }
+      draw();
+    }
+  };
 
   /* ---------------- 启动 ---------------- */
 

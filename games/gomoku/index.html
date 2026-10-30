@@ -26,6 +26,8 @@
         <div class="hud-item"><span>总步数</span><strong id="moves">0</strong></div>
       </div>
 
+      <div class="net-bar" id="netBar" hidden></div>
+
       <div class="stage gomoku-stage">
         <canvas id="board" width="600" height="600" aria-label="五子棋棋盘"></canvas>
         <div class="overlay" id="overlay" hidden>
@@ -61,6 +63,10 @@
     </footer>
 
     <script src="../../assets/js/common.js"></script>
+    <script src="../../assets/js/net/config.js"></script>
+    <script src="../../assets/js/net/core.js"></script>
+    <script src="../../assets/js/net/p2p.js"></script>
+    <script src="net.js"></script>
     <script src="gomoku.js"></script>
   </body>
 </html>

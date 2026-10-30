@@ -1,6 +1,6 @@
 # 崔彦斌的游戏空间
 
-一个纯静态、零外部依赖的免费在线小游戏网站，包含 17 款经典小游戏。所有游戏都在浏览器本地运行，无需登录、没有广告、不加载任何第三方脚本或字体（3D 空战所需的 Three.js 已随仓库内置），可直接部署到 **Cloudflare Workers**、**Cloudflare Pages**（或任意静态托管）。
+一个纯静态的免费在线小游戏网站，包含 17 款经典小游戏。单机部分完全在浏览器本地运行，不需要登录，成绩只存 `localStorage`；另有「联机大厅」提供账号、在线列表与好友邀请，对局走 WebRTC P2P，服务器只承担身份与信令。3D 空战所需的 Three.js、联机所需的 Netlib 与 supabase-js 均已随仓库内置，可直接部署到 **Cloudflare Workers**、**Cloudflare Pages**（或任意静态托管）。
 
 ## 游戏列表
 
@@ -68,6 +68,46 @@
 - 「中途岛空战」和「山谷高射炮」都是 Three.js 3D 游戏，引擎文件已放在 `assets/vendor/three.min.js`（r128，MIT 协议）随仓库一起部署，运行时不请求任何 CDN。
 - 该页面原本还依赖 Tailwind CSS 的 CDN 版本，已改为页面内的等价工具类；「坦克之星」原本从 Google Fonts 取字体，已改为系统字体回退。
 - 因此整站首次访问后即可离线运行，`git clone` 下来直接开服务器就能玩全部 17 款。
+
+## 联机大厅
+
+入口：`lobby.html`，首页导航「联机大厅」。
+
+**当前可联机的游戏只有五子棋**（试点），其余游戏仍是纯单机。房间码加入这一兜底方式对任何后续适配的游戏都通用。
+
+### 玩家视角
+
+1. 注册 / 登录邮箱账号（Supabase Auth）。
+2. 进入大厅后能看到其他在线玩家的昵称与状态（空闲 / 勿扰 / 游戏中）。
+3. 选一名空闲玩家、选游戏，点「邀请联机」。
+4. 对方 30 秒内接受后，双方自动进入游戏页并建立 P2P 连接：邀请方执黑先行，被邀请方执白。
+5. 也可以不走邀请：一方在游戏页用 `?host=1` 建房，把 11–13 位房间码发给对方，对方在大厅「房间码加入」里填入。
+
+未登录时可以正常玩全部单机游戏，但进不了大厅。
+
+### 管理员配置（部署前必做）
+
+1. 在 Supabase 建项目，执行 `supabase/migrations/0001_online.sql`。
+2. `Authentication → URL Configuration`：Site URL 填站点最终域名（含 `https://`），Redirect URLs 加生产域名、Workers 预览域名与本地 `http://localhost:8080/**`。
+3. `Authentication → Providers → Email`：开发期关闭 `Confirm email`，否则 `signUp` 不返回会话，且内置邮件只有 2 封/小时。
+4. 把 Project URL 与 `sb_publishable_...` 填入 `assets/js/net/config.js`。
+5. **只填 publishable / anon key**，`service_role` 或 `sb_secret` 绝不能进前端。
+
+### 本地起 Supabase
+
+```bash
+npx supabase start          # 需要 Docker，首次会拉镜像
+npx supabase db reset       # 重放 migrations
+```
+
+启动后把输出的 `API URL` 与 `anon key` 填入 `assets/js/net/config.js`，并在本机 `http://localhost:8080` 下测试。
+
+### 已知边界
+
+- Netlib 的信令与 TURN 由 Poki 提供（`wss://netlib.poki.io`、`turn.cloudflare.com`），没有 SLA，可能被限流。`config.js` 的 `signalingUrl` 留空即用默认，将来可切自托管。
+- 房间码长度不固定，实测出现过 11 位与 13 位，代码中禁止按固定长度截断。
+- 联机对局不写本地战绩，也不能悔棋或重开。
+- `_headers` 里的 CSP 只对 Cloudflare 生效，本地 `python -m http.server` 不带这些头，验证 CSP 要用 `npx wrangler dev`。
 
 ## 本地预览
 
@@ -141,6 +181,7 @@ npx wrangler deploy
 ```text
 .
 ├── index.html                  # 首页：游戏列表、搜索、筛选
+├── lobby.html                  # 联机大厅：登录、在线列表、邀请
 ├── 404.html                    # 自定义 404
 ├── manifest.webmanifest        # PWA 基础信息
 ├── _headers                    # Cloudflare 响应头 / 缓存
@@ -153,6 +194,13 @@ npx wrangler deploy
 │   ├── css/game.css            # 游戏页与各游戏样式
 │   ├── js/common.js            # 存档、音效、画布、提示等公共能力
 │   ├── js/site.js              # 首页搜索 / 筛选 / 成绩展示
+│   ├── js/net/config.js        # 联机配置：Supabase URL/Key、Netlib Game ID
+│   ├── js/net/core.js          # 按需加载 supabase-js 与 Netlib
+│   ├── js/net/lobby.js         # 登录、Presence、邀请信令
+│   ├── js/net/p2p.js           # Netlib 建房 / 加入 / 定向发送
+│   ├── css/lobby.css           # 大厅样式
+│   ├── vendor/netlib.js        # Poki Netlib（26 KB，P2P 与信令）
+│   ├── vendor/supabase.js      # supabase-js UMD（仅大厅与联机页按需加载）
 │   └── img/favicon.svg         # 站点图标
 └── games/
     ├── snake/                  # 贪吃蛇
@@ -178,9 +226,12 @@ npx wrangler deploy
 
 ## 数据与隐私
 
-- 成绩与设置只保存在浏览器 `localStorage` 中，键名统一以 `cyb.` 开头，不会上传服务器。
+- 单机的成绩与设置只保存在浏览器 `localStorage` 中，键名统一以 `cyb.` 开头，不会上传服务器。
 - 音效开关保存在 `cyb.sound`；清除浏览器站点数据即可彻底重置。
-- 站点不包含统计脚本、广告、Cookie 或任何跨域请求。
+- **只有使用联机功能时**才会请求 Supabase：账号密码提交给 Supabase Auth 校验，昵称存 `profiles` 表，在线状态走 Realtime Presence。
+- 前端不保存明文密码；`localStorage` 中的 `sb-<ref>-auth-token` 是会话令牌，不是密码。
+- 对局数据不经过 Supabase，走 WebRTC P2P 直连（必要时经 TURN 中继）。
+- 站点不包含统计脚本、广告与第三方 Cookie。
 
 主要存档键：
 

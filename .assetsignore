@@ -8,3 +8,4 @@ package-lock.json
 README.md
 LICENSE
 wrangler.jsonc
+supabase
