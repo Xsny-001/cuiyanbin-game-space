@@ -456,7 +456,9 @@
 
     S.incoming = { row: row, timer: null };
     var game = Net.gameMeta(row.game_key);
-    $("inviteFrom").textContent = "匿名玩家";
+    /* 在线列表里已经有昵称，先用它填，避免闪一下“匿名玩家” */
+    var known = S.players && S.players.get(row.from_id);
+    $("inviteFrom").textContent = (known && known.nick) || "对手";
     $("inviteGame").textContent = game ? game.name : row.game_key;
     $("inviteModal").hidden = false;
 
