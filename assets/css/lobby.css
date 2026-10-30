@@ -367,3 +367,29 @@
   .player-actions { width: 100%; }
   .player-actions .btn { flex: 1; }
 }
+
+/* ---------------- 数据库未初始化提示 ---------------- */
+
+.setup-banner {
+  margin: 0 auto 18px;
+  max-width: 640px;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 209, 102, 0.42);
+  border-radius: 12px;
+  background: rgba(255, 209, 102, 0.08);
+  color: #ffe8b8;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.setup-banner[hidden] { display: none; }
+.setup-banner strong { display: block; margin-bottom: 4px; font-size: 14px; color: #ffd166; }
+.setup-banner p { margin: 4px 0 0; color: #e8d6a8; }
+.setup-banner code {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.28);
+  font: 600 12px/1.7 var(--mono);
+  color: #ffe8b8;
+}
+.setup-banner a { color: #ffd166; text-decoration: underline; }

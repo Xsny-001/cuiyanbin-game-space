@@ -85,13 +85,18 @@
 
 未登录时可以正常玩全部单机游戏，但进不了大厅。
 
-### 管理员配置（部署前必做）
+### 管理员配置
 
-1. 在 Supabase 建项目，执行 `supabase/migrations/0001_online.sql`。
-2. `Authentication → URL Configuration`：Site URL 填站点最终域名（含 `https://`），Redirect URLs 加生产域名、Workers 预览域名与本地 `http://localhost:8080/**`。
-3. `Authentication → Providers → Email`：开发期关闭 `Confirm email`，否则 `signUp` 不返回会话，且内置邮件只有 2 封/小时。
-4. 把 Project URL 与 `sb_publishable_...` 填入 `assets/js/net/config.js`。
-5. **只填 publishable / anon key**，`service_role` 或 `sb_secret` 绝不能进前端。
+**当前状态**：Supabase 项目已创建（ref `ptlisyuwdllealldajjw`），`assets/js/net/config.js` 已填入 Project URL 与 publishable key。剩下三步只能在 Supabase Dashboard 里做：
+
+1. **SQL Editor** → 粘贴执行 `supabase/migrations/0001_online.sql`。脚本自带 `if not exists` / `drop ... if exists`，可重复执行。未执行时大厅会顶出「联机数据库还没初始化」并禁用登录按钮，不会静默报错。
+2. **Authentication → URL Configuration**：Site URL 填 `https://cybmy78.cc.cd`（不带路径、不带结尾斜杠）；Redirect URLs 追加 `https://cybmy78.cc.cd/**` 与 `http://localhost:8080/**`。填错的表现是确认邮件与重置密码跳回 localhost。
+3. **Authentication → Providers → Email**：小范围自用建议关闭 `Confirm email`，否则注册后拿不到会话、必须去点邮件，而内置邮件限额只有 2 封/小时。
+
+补充两点：
+
+- 数据库直连 `db.<ref>.supabase.co:5432` 只解析出 IPv6，纯 IPv4 网络连不上；需要命令行连库时走 Connection Pooling（`aws-0-<区域>.pooler.supabase.com`，用户名 `postgres.<ref>`）。
+- 前端只允许 publishable / anon key；`service_role` 或 `sb_secret` 绝不能进仓库。
 
 ### 本地起 Supabase
 

@@ -7,10 +7,10 @@
    ============================================================ */
 
 window.CYB_NET_CONFIG = {
-  /* 例：https://abcdefghijklmn.supabase.co */
-  supabaseUrl: "",
-  /* 例：sb_publishable_xxxxxxxxxxxxxxxx */
-  supabaseKey: "",
+  /* Supabase 项目地址 */
+  supabaseUrl: "https://ptlisyuwdllealldajjw.supabase.co",
+  /* publishable key，可公开，随前端下发 */
+  supabaseKey: "sb_publishable_AmPVkmv0WWKZHnZuwaAYOA_UMlBDrIe",
 
   /* Netlib 用固定 UUID 即可，同一个站点所有游戏共用 */
   netlibGameId: "9f2c1d47-6b8e-4a03-9c55-2e7d81b4f0aa",

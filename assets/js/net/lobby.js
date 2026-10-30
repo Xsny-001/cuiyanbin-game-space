@@ -56,6 +56,57 @@
     return (p && (p.nick || p.nickname)) || "玩家";
   }
 
+  /* ---------------- 数据库自检 ---------------- */
+
+  var SETUP_SQL_URL =
+    "https://github.com/Xsny-001/cuiyanbin-game-space/blob/main/supabase/migrations/0001_online.sql";
+
+  function schemaMissing(err) {
+    if (!err) return false;
+    var code = String(err.code || "");
+    var msg = String(err.message || "");
+    return (
+      code === "PGRST205" ||
+      code === "42P01" ||
+      /Could not find the table|relation .* does not exist/i.test(msg)
+    );
+  }
+
+  function probeSchema(sb) {
+    return sb
+      .from("profiles")
+      .select("id")
+      .limit(1)
+      .then(function (res) {
+        if (schemaMissing(res.error)) {
+          showSetup();
+          return false;
+        }
+        return true;
+      })
+      .catch(function () {
+        return true; /* 网络异常不拦，交给后续步骤报错 */
+      });
+  }
+
+  function showSetup() {
+    var box = $("setupBanner");
+    $("authView").hidden = false;
+    $("lobbyView").hidden = true;
+    if (box) {
+      box.hidden = false;
+      box.innerHTML =
+        '<strong>联机数据库还没初始化</strong>' +
+        "<p>账号服务已经连上，但项目里缺少 <code>profiles</code> 与 <code>game_invites</code> 两张表，" +
+        "登录后会读不到昵称、也收不到邀请。</p>" +
+        '<p>到 Supabase Dashboard → SQL Editor 执行 <a href="' +
+        SETUP_SQL_URL +
+        '" target="_blank" rel="noopener">0001_online.sql</a> 即可，脚本可重复执行。</p>';
+    }
+    $("authSubmit").disabled = true;
+    setMsg("数据库未初始化：请先执行建表脚本。", "error");
+  }
+
   /* ---------------- 认证 ---------------- */
 
   function boot() {
@@ -69,9 +120,13 @@
     Net.client()
       .then(function (sb) {
         S.sb = sb;
-        return sb.auth.getSession();
+        return probeSchema(sb).then(function (ready) {
+          if (!ready) return null;              // 表未初始化，停在提示页
+          return sb.auth.getSession();
+        });
       })
       .then(function (res) {
+        if (res === null) return null;          // 已由 probeSchema 接管提示
         var session = res && res.data && res.data.session;
         watchAuth();
         if (session) return enter(session.user);
