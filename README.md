@@ -87,16 +87,17 @@
 
 ### 管理员配置
 
-**当前状态**：Supabase 项目已创建（ref `ptlisyuwdllealldajjw`），`assets/js/net/config.js` 已填入 Project URL 与 publishable key。剩下三步只能在 Supabase Dashboard 里做：
+**当前状态**：已上线可用。项目 ref `ptlisyuwdllealldajjw`，`assets/js/net/config.js` 填的是该项目的 Project URL 与 publishable key；`0001_online.sql` 已执行，`profiles` / `game_invites` / 两个 SECURITY DEFINER 函数与 Realtime publication 均已在生产项目上验证；`Confirm email` 已关闭，注册即得会话。
 
-1. **SQL Editor** → 粘贴执行 `supabase/migrations/0001_online.sql`。脚本自带 `if not exists` / `drop ... if exists`，可重复执行。未执行时大厅会顶出「联机数据库还没初始化」并禁用登录按钮，不会静默报错。
-2. **Authentication → URL Configuration**：Site URL 填 `https://cybmy78.cc.cd`（不带路径、不带结尾斜杠）；Redirect URLs 追加 `https://cybmy78.cc.cd/**` 与 `http://localhost:8080/**`。填错的表现是确认邮件与重置密码跳回 localhost。
-3. **Authentication → Providers → Email**：小范围自用建议关闭 `Confirm email`，否则注册后拿不到会话、必须去点邮件，而内置邮件限额只有 2 封/小时。
+只剩一项建议补：
 
-补充两点：
+- **Authentication → URL Configuration**：Site URL 填 `https://cybmy78.cc.cd`（不带路径、不带结尾斜杠），Redirect URLs 追加 `https://cybmy78.cc.cd/**` 与 `http://localhost:8080/**`。不配的话，重置密码邮件里的回跳会落到默认地址。
+
+补充三点：
 
 - 数据库直连 `db.<ref>.supabase.co:5432` 只解析出 IPv6，纯 IPv4 网络连不上；需要命令行连库时走 Connection Pooling（`aws-0-<区域>.pooler.supabase.com`，用户名 `postgres.<ref>`）。
 - 前端只允许 publishable / anon key；`service_role` 或 `sb_secret` 绝不能进仓库。
+- 测试期间在项目里留了几个 `@maxxspace.com` 的临时账号，可在 Dashboard → Authentication → Users 里删掉。
 
 ### 本地起 Supabase
 
