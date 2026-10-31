@@ -4,8 +4,9 @@
   "private": true,
   "description": "崔彦斌的游戏空间 - 纯静态小游戏合集",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "dev": "wrangler pages dev .",
+    "deploy": "wrangler pages deploy .",
+    "deploy:workers": "wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4.152.0"

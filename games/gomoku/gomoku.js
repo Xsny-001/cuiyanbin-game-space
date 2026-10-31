@@ -92,8 +92,8 @@
 
   /* ---------------- 新局 / 悔棋 ---------------- */
 
-  function newGame() {
-    if (isOnline() && moves.length && !gameOver) {
+  function newGame(force) {
+    if (isOnline() && moves.length && !gameOver && force !== true) {
       setStatus(isHumanTurn(), "联机对局进行中，不能重新开始");
       return;
     }
@@ -110,7 +110,12 @@
     hover = null;
     overlay.hidden = true;
     updateHud();
-    setStatus(true, "你执黑先行，点击棋盘落子");
+    if (isOnline()) {
+      var mine = myColor() === HUMAN;
+      setStatus(mine, mine ? "你执黑先行" : "你执白，等黑棋落子");
+    } else {
+      setStatus(true, "你执黑先行，点击棋盘落子");
+    }
     draw();
   }
 
@@ -594,6 +599,8 @@
 
   canvas.addEventListener("pointerdown", function (event) {
     if (event.button && event.button !== 0) return;
+    var h = hook();
+    if (h && (h.readonly || h.pending)) return;
     if (gameOver || thinking || !isHumanTurn()) return;
 
     var cell = cellFromEvent(event);
@@ -603,14 +610,30 @@
     place(cell.r, cell.c, myColor());
   });
 
-  primaryBtn.addEventListener("click", newGame);
-  restartBtn.addEventListener("click", newGame);
+  primaryBtn.addEventListener("click", function () {
+    newGame(false);
+  });
+  restartBtn.addEventListener("click", function () {
+    newGame(false);
+  });
   undoBtn.addEventListener("click", undo);
 
   /* ---------------- 联机接口 ---------------- */
 
   window.__GOMOKU__ = {
     place: place,
+    restart: function () {
+      newGame(true);
+    },
+    state: function () {
+      return {
+        moves: moves.length,
+        over: gameOver,
+        turn: moves.length % 2 === 0 ? 1 : 2,
+        color: myColor(),
+        online: isOnline()
+      };
+    },
     refresh: function () {
       updateHud();
       if (isOnline() && !gameOver) {

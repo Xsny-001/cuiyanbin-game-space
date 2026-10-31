@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>联机自测 · P2P</title>
+    <link rel="stylesheet" href="../assets/css/base.css" />
+    <link rel="stylesheet" href="../assets/css/net.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font: 13px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 4px;
+      }
+      .sub {
+        color: var(--muted-soft);
+        margin: 0 0 18px;
+        font-size: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      button {
+        padding: 8px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--line-strong);
+        background: var(--panel);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--panel-strong);
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 4px 12px;
+        margin: 0 0 14px;
+      }
+      dt {
+        color: var(--muted-soft);
+      }
+      dd {
+        margin: 0;
+      }
+      #log {
+        height: 240px;
+        overflow: auto;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: rgba(0, 0, 0, 0.28);
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>联机自测</h1>
+    <p class="sub">用两个浏览器打开本页，测试门禁 / 碰头 / 聊天。生产环境不会暴露这个页面。</p>
+
+    <div class="row">
+      <button id="btnAuth">1. 登录</button>
+      <button id="btnEnter">2. 进入大厅</button>
+      <button id="btnChat">3. 挂载聊天</button>
+      <button id="btnSay">4. 发一条测试消息</button>
+      <button id="btnLeave">5. 离开</button>
+    </div>
+
+    <dl>
+      <dt>登录态</dt><dd id="vAuth">—</dd>
+      <dt>连接状态</dt><dd id="vState">—</dd>
+      <dt>房间码</dt><dd id="vCode">—</dd>
+      <dt>是否房主</dt><dd id="vHost">—</dd>
+      <dt>在线人数</dt><dd id="vCount">—</dd>
+      <dt>我的 peerId</dt><dd id="vSelf">—</dd>
+    </dl>
+
+    <div id="log"></div>
+
+    <script src="../assets/js/common.js"></script>
+    <script src="../assets/vendor/netlib.js"></script>
+    <script src="../assets/js/net/p2p.js"></script>
+    <script src="../assets/js/net/chat.js"></script>
+    <script>
+      var logEl = document.getElementById("log");
+      var roomCode = "";
+
+      function log(msg) {
+        var line = document.createElement("div");
+        line.textContent = "[" + new Date().toLocaleTimeString() + "] " + msg;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+        console.log(msg);
+      }
+
+      function refresh() {
+        var cur = P2P.current();
+        document.getElementById("vAuth").textContent = cur ? cur.user + " / " + cur.nick : "未登录";
+        document.getElementById("vState").textContent = P2P.state;
+        document.getElementById("vCode").textContent = roomCode || "—";
+        document.getElementById("vHost").textContent = P2P.connected ? (P2P.isHost ? "是（房主）" : "否（客机）") : "—";
+        document.getElementById("vCount").textContent = P2P.connected ? P2P.peerCount + " 人" : "—";
+        document.getElementById("vSelf").textContent = P2P.selfId || "—";
+      }
+
+      document.getElementById("btnAuth").onclick = function () {
+        P2P.requireAuth().then(function (ok) {
+          log("requireAuth → " + ok);
+          refresh();
+        });
+      };
+
+      document.getElementById("btnEnter").onclick = function () {
+        log("enter(lobby) ...");
+        P2P.enter("lobby", {
+          onStatus: function (s, d) {
+            log("status: " + s + (d ? " " + JSON.stringify(d) : ""));
+            refresh();
+          },
+          onReady: function (r) {
+            roomCode = r.code || "";
+            log("ready: isHost=" + r.isHost + " code=" + roomCode);
+            refresh();
+          },
+          onPeerJoin: function (id) {
+            log("peer-join " + id);
+            Chat.setOnline(P2P.peerCount);
+            refresh();
+          },
+          onPeerLeave: function (id) {
+            log("peer-leave " + id);
+            Chat.setOnline(P2P.peerCount);
+            refresh();
+          },
+          onMessage: function (msg, id) {
+            log("msg " + msg.t + " from " + id + " " + JSON.stringify(msg.d));
+          }
+        })
+          .then(function () {
+            log("enter 完成");
+            refresh();
+          })
+          .catch(function (e) {
+            log("enter 失败: " + (e && e.code) + " " + (e && e.message));
+            refresh();
+          });
+      };
+
+      document.getElementById("btnChat").onclick = function () {
+        Chat.mount({ title: "大厅自测" });
+        Chat.setOnline(P2P.peerCount);
+        log("chat mounted");
+      };
+
+      document.getElementById("btnSay").onclick = function () {
+        var input = document.querySelector(".cyb-chat-input");
+        var form = document.querySelector(".cyb-chat-form");
+        if (!input || !form) {
+          log("先挂载聊天");
+          return;
+        }
+        input.value = "测试消息 " + (Date.now() % 10000);
+        form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+        log("已通过输入框发送");
+      };
+
+      document.getElementById("btnLeave").onclick = function () {
+        P2P.leave();
+        Chat.setEnabled(false);
+        roomCode = "";
+        log("left");
+        refresh();
+      };
+
+      P2P.on("status", refresh);
+      refresh();
+    </script>
+  </body>
+</html>

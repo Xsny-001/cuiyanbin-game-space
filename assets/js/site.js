@@ -158,8 +158,116 @@
     }
   });
 
+  /* ---------------- 联机大厅 ---------------- */
+
+  var lobbyBtn = document.getElementById("lobbyBtn");
+  var lobbyBusy = false;
+
+  function narrowScreen() {
+    return window.matchMedia("(max-width: 780px)").matches;
+  }
+
+  function paintLobby() {
+    if (!lobbyBtn || !window.P2P) return;
+    var label = lobbyBtn.querySelector(".nav-label");
+    var brief = narrowScreen();
+    if (P2P.connected) {
+      lobbyBtn.dataset.state = "connected";
+      if (label) {
+        label.textContent = (brief ? "联机 · " : "联机大厅 · ") + P2P.peerCount;
+      }
+      lobbyBtn.title = "已连接大厅，共 " + P2P.peerCount + " 人在线";
+    } else if (P2P.state === "signaling" || P2P.state === "searching") {
+      lobbyBtn.dataset.state = "connecting";
+      if (label) label.textContent = brief ? "连接中" : "连接中…";
+    } else {
+      lobbyBtn.dataset.state = "idle";
+      if (label) label.textContent = brief ? "联机" : "联机大厅";
+    }
+  }
+
+  window.addEventListener("resize", paintLobby);
+
+  function enterLobby() {
+    if (!window.P2P) return Promise.reject(new Error("no p2p"));
+    if (P2P.connected) return Promise.resolve();
+    if (lobbyBusy) return Promise.resolve();
+    lobbyBusy = true;
+
+    return P2P.enter("lobby", {
+      onStatus: paintLobby,
+      onPeerJoin: function () {
+        paintLobby();
+        if (window.Chat && Chat.setOnline) Chat.setOnline(P2P.peerCount);
+      },
+      onPeerLeave: function () {
+        paintLobby();
+        if (window.Chat && Chat.setOnline) Chat.setOnline(P2P.peerCount);
+      }
+    })
+      .then(function () {
+        if (window.Chat) {
+          Chat.mount({ title: "大厅" });
+          Chat.setOnline(P2P.peerCount);
+        }
+        paintLobby();
+        lobbyBusy = false;
+      })
+      .catch(function (e) {
+        lobbyBusy = false;
+        paintLobby();
+        if (e && e.code === "auth") return;
+        if (App.toast) App.toast("大厅连接失败，请稍后再试");
+        throw e;
+      });
+  }
+
+  if (lobbyBtn) {
+    lobbyBtn.addEventListener("click", function () {
+      if (P2P.connected) {
+        if (window.Chat) Chat.toggle();
+        return;
+      }
+      enterLobby().catch(function () {});
+    });
+  }
+
+  /* 已登录就静默恢复大厅，不弹任何窗 */
+  if (window.P2P && P2P.current()) {
+    window.setTimeout(enterLobby, 300);
+  }
+
+  /* 进入联机游戏前提示会断线；单机游戏完全不拦 */
+  document.addEventListener(
+    "click",
+    function (event) {
+      var link = event.target.closest ? event.target.closest('a[href^="games/"]') : null;
+      if (!link) return;
+      if (!link.getAttribute("data-online")) return;
+      if (!window.P2P || !P2P.connected) return;
+
+      event.preventDefault();
+      if (window.confirm("即将进入游戏房间，大厅连接将断开，请在游戏内重新交流。")) {
+        var target = link.getAttribute("href");
+        var jumped = false;
+        var go = function () {
+          if (jumped) return;
+          jumped = true;
+          window.location.href = target;
+        };
+        /* 先退房再跳，避免旧连接占着信令，新页面建连超时 */
+        try {
+          P2P.leave();
+        } catch (e) {}
+        window.setTimeout(go, 220);
+      }
+    },
+    true
+  );
+
   /* ---------------- 初始化 ---------------- */
 
+  paintLobby();
   renderBestScores();
   applyFilters();
 

@@ -14,6 +14,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/site.css" />
+    <link rel="stylesheet" href="assets/css/net.css" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="崔彦斌的游戏空间" />
     <meta
@@ -31,7 +32,10 @@
         </a>
         <span class="nav-spacer"></span>
         <a class="nav-link" href="#games">全部游戏</a>
-        <a class="nav-link" href="lobby.html">联机大厅</a>
+        <button class="nav-link nav-online" id="lobbyBtn" type="button" data-state="idle">
+          <span class="nav-dot" aria-hidden="true"></span>
+          <span class="nav-label">联机大厅</span>
+        </button>
         <a class="nav-link" href="#about">关于</a>
         <a
           class="nav-link"
@@ -297,6 +301,7 @@
               href="games/gomoku/"
               data-tags="策略 益智"
               data-name="五子棋 gomoku 棋 连珠 电脑对战"
+              data-online="gomoku"
               style="--c1: #f59e0b; --c2: #64748b"
             >
               <div class="card-art">
@@ -599,6 +604,9 @@
     </footer>
 
     <script src="assets/js/common.js"></script>
+    <script src="assets/vendor/netlib.js"></script>
+    <script src="assets/js/net/p2p.js"></script>
+    <script src="assets/js/net/chat.js"></script>
     <script src="assets/js/site.js"></script>
   </body>
 </html>

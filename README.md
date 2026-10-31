@@ -1,6 +1,6 @@
 # 崔彦斌的游戏空间
 
-一个纯静态的免费在线小游戏网站，包含 17 款经典小游戏。单机部分完全在浏览器本地运行，不需要登录，成绩只存 `localStorage`；另有「联机大厅」提供账号、在线列表与好友邀请，对局走 WebRTC P2P，服务器只承担身份与信令。3D 空战所需的 Three.js、联机所需的 Netlib 与 supabase-js 均已随仓库内置，可直接部署到 **Cloudflare Workers**、**Cloudflare Pages**（或任意静态托管）。
+一个纯静态的免费在线小游戏网站，包含 17 款经典小游戏。单机部分完全在浏览器本地运行，不需要登录，成绩只存 `localStorage`；另有「联机大厅」提供门禁与大厅聊天，对局走 WebRTC P2P，仓库里没有任何后端代码，也没有数据库。3D 空战所需的 Three.js、联机所需的 Netlib 均已随仓库内置，可直接部署到 **Cloudflare Workers**、**Cloudflare Pages**（或任意静态托管）。
 
 ## 游戏列表
 
@@ -71,50 +71,59 @@
 
 ## 联机大厅
 
-入口：`lobby.html`，首页导航「联机大厅」。
+入口：首页导航「联机大厅」，不再有独立的 `lobby.html`。
 
-**当前可联机的游戏只有五子棋**（试点），其余游戏仍是纯单机。房间码加入这一兜底方式对任何后续适配的游戏都通用。
+**当前已联机的游戏只有五子棋**（试点 1/5），其余 16 款仍是纯单机，脚本没有被引入。
 
 ### 玩家视角
 
-1. 注册 / 登录邮箱账号（Supabase Auth）。
-2. 进入大厅后能看到其他在线玩家的昵称与状态（空闲 / 勿扰 / 游戏中）。
-3. 选一名空闲玩家、选游戏，点「邀请联机」。
-4. 对方 30 秒内接受后，双方自动进入游戏页并建立 P2P 连接：邀请方执黑先行，被邀请方执白。
-5. 也可以不走邀请：一方在游戏页用 `?host=1` 建房，把 11–13 位房间码发给对方，对方在大厅「房间码加入」里填入。
+1. 点导航「联机大厅」，输入账号（`admin` / `1949101`）和昵称。
+2. 登录后自动进入固定大厅房间，导航会显示「联机大厅 · N」，右下角出现聊天按钮。
+3. 点五子棋卡片会提示「即将进入游戏房间，大厅连接将断开」，确认后进入游戏页。
+4. 游戏页会自动进同一个固定房间：先进的是房主执黑，后进的是客机执白。
+5. 落子、重开实时同步；右下角仍是同一个聊天面板，只是标题变成「五子棋」。
 
-未登录时可以正常玩全部单机游戏，但进不了大厅。
+未登录时首页不会弹任何窗，全部单机游戏照常可玩；五子棋页会显示「想和朋友下？联机对战」按钮，点了才要求登录。
 
-### 管理员配置
+### 配置
 
-**当前状态**：已上线可用。项目 ref `ptlisyuwdllealldajjw`，`assets/js/net/config.js` 填的是该项目的 Project URL 与 publishable key；`0001_online.sql` 已执行，`profiles` / `game_invites` / 两个 SECURITY DEFINER 函数与 Realtime publication 均已在生产项目上验证；`Confirm email` 已关闭，注册即得会话。
+全部集中在 `assets/js/net/p2p.js` 顶部：
 
-只剩一项建议补：
+```js
+var SITE_LOBBY    = 'cybmy78_main_lobby';   // 大厅房间名
+var GAME_PASSWORD = '1949101';              // 所有房间共用的密码
 
-- **Authentication → URL Configuration**：Site URL 填 `https://cybmy78.cc.cd`（不带路径、不带结尾斜杠），Redirect URLs 追加 `https://cybmy78.cc.cd/**` 与 `http://localhost:8080/**`。不配的话，重置密码邮件里的回跳会落到默认地址。
-
-补充三点：
-
-- 数据库直连 `db.<ref>.supabase.co:5432` 只解析出 IPv6，纯 IPv4 网络连不上；需要命令行连库时走 Connection Pooling（`aws-0-<区域>.pooler.supabase.com`，用户名 `postgres.<ref>`）。
-- 前端只允许 publishable / anon key；`service_role` 或 `sb_secret` 绝不能进仓库。
-- 测试期间在项目里留了几个 `@maxxspace.com` 的临时账号，可在 Dashboard → Authentication → Users 里删掉。
-
-### 本地起 Supabase
-
-```bash
-npx supabase start          # 需要 Docker，首次会拉镜像
-npx supabase db reset       # 重放 migrations
+var CONFIG = {
+  ACCOUNT: { user: 'admin', pass: '1949101' },   // 门禁
+  ROOMS: {
+    lobby:  { name: SITE_LOBBY,       gameId: '…', maxPlayers: 8 },
+    gomoku: { name: 'cybmy78_gomoku', gameId: '…', maxPlayers: 2 }
+  }
+};
 ```
 
-启动后把输出的 `API URL` 与 `anon key` 填入 `assets/js/net/config.js`，并在本机 `http://localhost:8080` 下测试。
+改账号、密码、房间名、人数上限都只动这一处。新增联机游戏时在 `ROOMS` 里加一项、分配一个新 `gameId` 即可，房间池互不可见。
+
+### 房间是怎么"碰头"的
+
+Netlib 没有"固定房间码"这个概念：`create()` 返回的是服务端随机码，`joinOrCreate()` 会忽略传入的名字（实测返回的 code 与传入值无关，且 `password` 不生效）。所以固定碰头是靠三条组合实现的：
+
+1. `create()` 时把房间名写进 `customData.room`，同时设 `password` 与 `maxPlayers`；
+2. 后来者用 `list()` 拉公开房，按 `customData.room` 匹配，找到就 `join(code, GAME_PASSWORD)`；
+3. 两端同时建房时，房间码字典序小的一方胜出，另一方 `leave()` 后加入对方。
+
+房主每 30 秒刷新一次 `customData.ts` 心跳；超过 2 分钟没有心跳的房间会被判定为残骸直接跳过，避免有人被塞进"房主早已关闭"的僵尸房。
 
 ### 已知边界
 
-- Netlib 的信令与 TURN 由 Poki 提供（`wss://netlib.poki.io`、`turn.cloudflare.com`），没有 SLA，可能被限流。`config.js` 的 `signalingUrl` 留空即用默认，将来可切自托管。
-- 房间码长度不固定，实测出现过 11 位与 13 位，代码中禁止按固定长度截断。
-- 联机对局不写本地战绩，也不能悔棋或重开。
-- `_headers` 里的 CSP 只对 Cloudflare 生效，本地 `python -m http.server` 不带这些头，验证 CSP 要用 `npx wrangler dev`。
-- 自有 JS/CSS 现在按 `max-age=0, must-revalidate` 回源校验；`lobby.html` 与 `games/gomoku/index.html` 里的联机脚本还额外带了 `?v=` 版本号，改动这些文件后请同步改版本号，避免边缘节点继续发旧副本。
+- 账号密码硬编码在前端，**任何人查看源码即可绕过**，localStorage 只是个标记。它挡的是"随手点进来的同学"，不是有心人。
+- 纯静态没有服务器裁决，房主理论上可以改客户端作弊。娱乐场景，不做反作弊。
+- 页面跳转到游戏页时 WebRTC 必然断开，这是静态多页应用的固有限制，所以跳转前用 `confirm` 提示。
+- Netlib 的信令与 TURN 由 Poki 提供（`wss://netlib.poki.io`、`turn.cloudflare.com`），没有 SLA，可能被限流或改协议。传输层封装在 `p2p.js` 单点，将来可整体替换。
+- 大厅上限 8 人，满了会开第二个厅，两厅的人互相看不见。
+- `_headers` 里的 CSP 只对 Cloudflare 生效，本地 `python -m http.server` 不带这些头；验证 CSP 要用 `npx wrangler dev`。
+- 自有 JS/CSS 按 `max-age=0, must-revalidate` 回源校验，`?v=` 只是双保险，改动 `p2p.js` / `chat.js` / `gomoku/net.js` 后建议同步改版本号。
+
 
 ## 本地预览
 
@@ -134,7 +143,9 @@ npx serve .
 
 > 直接双击 `index.html` 也能打开首页，但建议用本地服务器预览，行为与线上一致。
 
-## 部署到 Cloudflare Pages
+## 部署到 Cloudflare Pages（推荐）
+
+> 这是当前采用的方式。项目没有任何构建步骤，Pages 直接托管仓库根目录。
 
 1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**。
 2. 授权 GitHub，选择仓库 `Xsny-001/cuiyanbin-game-space`，生产分支选 `main`。
@@ -149,65 +160,57 @@ npx serve .
 
 项目根目录的 `_headers` 会由 Cloudflare Pages 自动识别，用于设置安全响应头与缓存策略；`404.html` 会作为自定义 404 页面。
 
-## 部署到 Cloudflare Workers（静态资源）
+> 因为发布目录是仓库根目录，`README.md`、`package.json` 这类文件也会被静态托管（内容本来就是公开的，无敏感信息）。如果介意，可在 Pages 项目里用 `_redirects` 把它们重写到 404。
 
-仓库已包含 `wrangler.jsonc`，使用 Workers 的静态资源功能，不需要编写任何 Worker 脚本，也不需要构建。
-
-### 方式一：连接 GitHub 自动部署
-
-1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → **Create application** → **GitHub**。
-2. 选择仓库 `Xsny-001/cuiyanbin-game-space`，生产分支选 `main`。
-3. Worker 名称填写 **`cuiyanbin-game-space`**（必须与 `wrangler.jsonc` 中的 `name` 一致）。
-4. 构建设置：
-   - **Build command**：`npm ci`
-   - **Deploy command**：`npx wrangler deploy`
-5. 点击 **Save and Deploy**，完成后会得到一个 `*.workers.dev` 域名。
-6. 之后每次推送到 `main` 都会自动重新部署。
-
-### 方式二：本地命令行部署
+### 命令行部署
 
 ```bash
-cd cuiyanbin-game-space
-npm install
-npx wrangler login
-npx wrangler deploy
+npm install          # 安装 wrangler（仅首次）
+npx wrangler login   # 在你自己电脑上登录 Cloudflare
+npm run deploy       # 等价于 wrangler pages deploy .
 ```
 
-首次部署会创建 Worker 并输出 `https://cuiyanbin-game-space.<你的子域>.workers.dev`。日常本地预览可运行 `npm run dev`。
+`wrangler.jsonc` 里的 `pages_build_output_dir` 已指向 `.`，`npm run dev` 会用 `wrangler pages dev .` 在本地带 `_headers` 预览。
 
-### 配置说明
+### 绑定自定义域名
 
-- `assets.directory` 指向仓库根目录 `.`，由 `.assetsignore` 排除 README、配置文件等非站点文件。
-- `not_found_handling: "404-page"` 让不存在的路径返回根目录的 `404.html`。
-- `_headers` 在 Workers 静态资源中同样生效，用于安全响应头与缓存策略。
-- 静态资源请求免费且不限量，无需数据库、环境变量或构建产物。
-- 绑定自定义域名：Worker → **Settings** → **Domains & Routes** → **Add custom domain**。
+Pages 项目 → **Custom domains** → **Set up a domain**，填入 `cybmy78.cc.cd`。如果这个域名当前还绑在旧的 Worker 上，需先在 Worker 的 **Settings → Domains & Routes** 里移除，否则两边会抢同一个域名。
+
+## （可选）改回 Cloudflare Workers
+
+如果以后想用 Workers 的静态资源而不是 Pages：把 `wrangler.jsonc` 换回
+
+```json
+{
+  "name": "cuiyanbin-game-space",
+  "compatibility_date": "2026-10-25",
+  "assets": { "directory": ".", "not_found_handling": "404-page" }
+}
+```
+
+然后 `npm run deploy:workers`。`.assetsignore` 只在 Workers 模式下生效，用来排除 README、配置文件等非站点文件。
 
 ## 目录结构
 
 ```text
 .
 ├── index.html                  # 首页：游戏列表、搜索、筛选
-├── lobby.html                  # 联机大厅：登录、在线列表、邀请
 ├── 404.html                    # 自定义 404
 ├── manifest.webmanifest        # PWA 基础信息
 ├── _headers                    # Cloudflare 响应头 / 缓存
-├── wrangler.jsonc              # Cloudflare Workers 部署配置
+├── wrangler.jsonc              # Cloudflare Pages 部署配置
 ├── package.json                # Wrangler 开发依赖与命令
-├── .assetsignore               # 不上传为静态资源的文件
+├── .assetsignore               # 仅 Workers 模式使用：排除非站点文件
 ├── assets/
 │   ├── css/base.css            # 设计变量、按钮、通用样式
 │   ├── css/site.css            # 首页样式
 │   ├── css/game.css            # 游戏页与各游戏样式
 │   ├── js/common.js            # 存档、音效、画布、提示等公共能力
 │   ├── js/site.js              # 首页搜索 / 筛选 / 成绩展示
-│   ├── js/net/config.js        # 联机配置：Supabase URL/Key、Netlib Game ID
-│   ├── js/net/core.js          # 按需加载 supabase-js 与 Netlib
-│   ├── js/net/lobby.js         # 登录、Presence、邀请信令
-│   ├── js/net/p2p.js           # Netlib 建房 / 加入 / 定向发送
-│   ├── css/lobby.css           # 大厅样式
+│   ├── js/net/p2p.js           # 联机基建：门禁、房间、消息信封
+│   ├── js/net/chat.js          # 悬浮聊天组件
+│   ├── css/net.css             # 门禁与聊天样式
 │   ├── vendor/netlib.js        # Poki Netlib（26 KB，P2P 与信令）
-│   ├── vendor/supabase.js      # supabase-js UMD（仅大厅与联机页按需加载）
 │   └── img/favicon.svg         # 站点图标
 └── games/
     ├── snake/                  # 贪吃蛇
@@ -235,9 +238,9 @@ npx wrangler deploy
 
 - 单机的成绩与设置只保存在浏览器 `localStorage` 中，键名统一以 `cyb.` 开头，不会上传服务器。
 - 音效开关保存在 `cyb.sound`；清除浏览器站点数据即可彻底重置。
-- **只有使用联机功能时**才会请求 Supabase：账号密码提交给 Supabase Auth 校验，昵称存 `profiles` 表，在线状态走 Realtime Presence。
-- 前端不保存明文密码；`localStorage` 中的 `sb-<ref>-auth-token` 是会话令牌，不是密码。
-- 对局数据不经过 Supabase，走 WebRTC P2P 直连（必要时经 TURN 中继）。
+- 联机功能不经过任何自建服务器：账号密码在浏览器本地比对，`localStorage['cyb.auth.v1']` 只存用户名、昵称和时间戳，**不存密码**。
+- 聊天记录只存在内存里，刷新即清空，不落盘、不上传。
+- 对局数据走 WebRTC P2P 直连（必要时经 Poki 提供的 TURN 中继），信令经 `wss://netlib.poki.io`。
 - 站点不包含统计脚本、广告与第三方 Cookie。
 
 主要存档键：

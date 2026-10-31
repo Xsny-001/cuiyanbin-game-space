@@ -2,8 +2,5 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "cuiyanbin-game-space",
   "compatibility_date": "2026-10-25",
-  "assets": {
-    "directory": ".",
-    "not_found_handling": "404-page"
-  }
+  "pages_build_output_dir": "."
 }
